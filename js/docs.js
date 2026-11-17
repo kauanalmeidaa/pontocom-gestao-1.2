@@ -39,7 +39,7 @@ const longDate = d => parse(d).toLocaleDateString('pt-BR', { day: 'numeric', mon
 const head = (title, num, s) => `<header class="dx-h">
   <svg class="dx-sig" viewBox="0 0 200 200" preserveAspectRatio="xMaxYMin slice" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="200" cy="0" r="42"/><circle cx="200" cy="0" r="84"/><circle cx="200" cy="0" r="126"/><circle cx="200" cy="0" r="168"/></g></svg>
   <div class="dx-brand">${s.logo ? `<img src="${s.logo}" alt="">` : `<div class="dx-mono">${esc((s.company || 'P').trim()[0].toUpperCase())}</div>`}
-    <div><b>${esc(s.company)}</b><span>${esc(s.whats)}</span><span>${esc(s.city)}${s.doc ? ' – ' + esc(s.doc) : ''}</span></div></div>
+    <div>${s.logo && !s.logo.startsWith('data:') ? '' : `<b>${esc(s.company)}</b>`}<span>${esc(s.whats)}</span><span>${esc(s.city)}${s.doc ? ' – ' + esc(s.doc) : ''}</span></div></div>
   <div class="dx-title"><h1>${title}</h1><div class="dx-num">${num}</div></div></header>`;
 const foot = s => `<footer class="dx-f"><span>${esc(s.company)}</span><span>${esc(s.whats)}</span><span>${esc(s.city)}</span></footer>`;
 const cell = (label, value) => `<div><small>${label}</small><b>${value}</b></div>`;
@@ -108,6 +108,6 @@ ACT.receiptPrompt = d => {
     <p class="hint">O WhatsApp abre com a mensagem pronta. Para mandar o PDF, use “Recibo (PDF)”, escolha salvar como PDF e anexe na conversa.</p>`);
 };
 
-export const receiptButtons = f => `<button type="button" class="btn ghost" data-act="printReceipt" data-id="${f.id}">${ic('print')} Recibo (PDF)</button><button type="button" class="btn ok" data-act="waReceipt" data-id="${f.id}">${ic('chat')} Enviar recibo</button>`;
+export const receiptButtons = f => `<button type="button" class="btn ghost" data-act="printReceipt" data-id="${f.id}">${ic('print')} Recibo (PDF)</button><button type="button" class="btn ok" data-act="waReceipt" data-id="${f.id}">${ic('wa')} Enviar recibo</button>`;
 /* botões na tela da OS: receber o pagamento ou emitir o recibo */
 export const osPayButtons = f => !f ? '' : `<div class="btns">${f.paid ? receiptButtons(f) : `<button type="button" class="btn ok" data-act="pay" data-id="${f.id}">${ic('check')} Receber pagamento</button>`}</div>`;

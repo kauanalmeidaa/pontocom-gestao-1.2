@@ -4,6 +4,8 @@
    Depois: trocar as funções put/del/loadAll por chamadas ao
    Supabase e o resto do sistema continua igual.
    ============================================================ */
+import * as Cloud from './cloud.js';
+export const cloud = Cloud.enabled;
 const COLS = ['clients','products','moves','os','quotes','finance','contracts','equipment','kits','users','meta'];
 export const DB = Object.fromEntries(COLS.map(c => [c, []]));
 export const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -13,8 +15,11 @@ export const DEFAULTS = {
   whats: '(88) 98170-5071',
   city: 'Senador Pompeu - CE',
   doc: '',
-  color: '#f5a300',
-  logo: '',
+  color: '#053565',            // azul-marinho da logo (cor principal)
+  accent: '#06bf2f',           // verde da logo (destaques)
+  logo: 'assets/logo.png',     // logo completa (login e PDFs)
+  icon: 'assets/logo-icon.png',// só o escudo (menu, ícone pequeno)
+  brandV: 2,
   warrantyEquip: 12,
   warrantyLabor: 6,
   validity: 7,
@@ -31,6 +36,9 @@ export const DEFAULTS = {
   }
 };
 
+/* No modo online cada empresa começa totalmente em branco (nada da PontoCom vai para o cliente). */
+if (cloud) Object.assign(DEFAULTS, { company: '', whats: '', city: '', doc: '', logo: '', icon: '', warrantyEquip: 3, warrantyLabor: 3, terms: '' });
+
 export const DEFAULT_KITS = [
   { name: 'Kit 4 câmeras', items: [['4','Câmera bullet 2MP','0'],['1','DVR 4 canais','0'],['1','HD 1TB','0'],['1','Fonte 12V e conectores','0'],['1','Mão de obra de instalação','0']] },
   { name: 'Cerca elétrica residencial', items: [['1','Central de choque','0'],['1','Sirene','0'],['1','Kit hastes e isoladores','0'],['1','Fio de aço (rolo)','0'],['1','Mão de obra de instalação','0']] },
@@ -43,6 +51,7 @@ const req = r => new Promise((ok, err) => { r.onsuccess = () => ok(r.result); r.
 const st = (c, m = 'readonly') => idb.transaction(c, m).objectStore(c);
 
 export function open() {
+  if (cloud) return Cloud.init();
   return new Promise((ok, err) => {
     const r = indexedDB.open('pontocom-gestao', 1);
     r.onupgradeneeded = () => COLS.forEach(c => r.result.createObjectStore(c, { keyPath: 'id' }));
@@ -50,16 +59,16 @@ export function open() {
     r.onerror = () => err(r.error);
   });
 }
-export async function loadAll() { for (const c of COLS) DB[c] = await req(st(c).getAll()); }
+export async function loadAll() { if (cloud) return Cloud.loadAll(DB, COLS); for (const c of COLS) DB[c] = await req(st(c).getAll()); }
 export async function put(c, o) {
   if (!o.id) o.id = uid();
-  await req(st(c, 'readwrite').put(o));
+  if (cloud) await Cloud.put(c, o); else await req(st(c, 'readwrite').put(o));
   const i = DB[c].findIndex(x => x.id === o.id);
   if (i >= 0) DB[c][i] = o; else DB[c].push(o);
   return o;
 }
 export async function del(c, id) {
-  await req(st(c, 'readwrite').delete(id));
+  if (cloud) await Cloud.del(c, id); else await req(st(c, 'readwrite').delete(id));
   DB[c] = DB[c].filter(x => x.id !== id);
 }
 export const get = (c, id) => DB[c].find(x => x.id === id);
@@ -70,11 +79,17 @@ export async function nextNum(c) {
   await put('meta', m);
   return m[c];
 }
-export const settings = () => ({ ...DEFAULTS, ...(DB.meta.find(m => m.id === 'settings') || {}) });
+export const settings = () => {
+  const st = DB.meta.find(m => m.id === 'settings') || {}, s = { ...DEFAULTS, ...st };
+  /* uma vez só: quem já tinha salvo ajustes antes da nova identidade passa a usar a logo e as cores novas */
+  if (!cloud && st.brandV !== DEFAULTS.brandV) Object.assign(s, { color: DEFAULTS.color, accent: DEFAULTS.accent, logo: DEFAULTS.logo, icon: DEFAULTS.icon, brandV: DEFAULTS.brandV });
+  return s;
+};
 export const saveSettings = s => put('meta', { ...s, id: 'settings' });
 
 export const exportAll = () => Object.fromEntries(COLS.map(c => [c, DB[c]]));
 export async function importAll(d) {
+  if (cloud) { await Cloud.importAll(d, COLS); return loadAll(); }
   for (const c of COLS) {
     await req(st(c, 'readwrite').clear());
     for (const o of (d[c] || [])) await req(st(c, 'readwrite').put(o));

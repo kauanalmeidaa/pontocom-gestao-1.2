@@ -62,7 +62,7 @@ export function osForm(id, pre = {}) {
     <canvas id="sig"></canvas>
     <div class="fg" style="margin-top:8px">${F('signedBy', 'Nome de quem assinou', o.signedBy || '')}<div class="f"><label>&nbsp;</label><button type="button" class="btn ghost block" data-act="clearSig">Limpar assinatura</button></div></div>
     <div class="btns"><button class="btn">Salvar OS</button></div>
-    ${id ? `<div class="btns"><button type="button" class="btn ghost" data-act="printOS" data-id="${id}">${ic('print')} PDF / imprimir</button><button type="button" class="btn ok" data-act="waOS" data-id="${id}">${ic('chat')} WhatsApp</button>${me.user.role === 'dono' ? `<button type="button" class="btn danger" data-act="deleteOS" data-id="${id}">${ic('trash')} Excluir</button>` : ''}</div>` : ''}
+    ${id ? `<div class="btns"><button type="button" class="btn ghost" data-act="printOS" data-id="${id}">${ic('print')} PDF / imprimir</button><button type="button" class="btn ok" data-act="waOS" data-id="${id}">${ic('wa')} WhatsApp</button>${me.user.role === 'dono' ? `<button type="button" class="btn danger" data-act="deleteOS" data-id="${id}">${ic('trash')} Excluir</button>` : ''}</div>` : ''}
     ${id && o.finId && can('finance') ? osPayButtons(get('finance', o.finId)) : ''}
   </form>`, { wide: true });
   initSig(o.signature); thumbs(); recalc($('#modal form'));

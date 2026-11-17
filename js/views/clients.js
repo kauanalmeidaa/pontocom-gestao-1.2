@@ -51,7 +51,7 @@ ACT.openClient = d => {
     <div class="meta" style="margin-bottom:4px">${[c.phone, c.doc, c.city, c.address].filter(Boolean).map(x => `<span>${esc(x)}</span>`).join('')}</div>
     ${c.notes ? `<p class="hint">${esc(c.notes)}</p>` : ''}
     <div class="btns">
-      ${c.phone ? `<a class="btn ok" href="${waLink(c.phone, '')}" target="_blank" rel="noopener">${ic('chat')} WhatsApp</a><a class="btn ghost" href="tel:${digits(c.phone)}">${ic('phone')} Ligar</a>` : ''}
+      ${c.phone ? `<a class="btn ok" href="${waLink(c.phone, '')}" target="_blank" rel="noopener">${ic('wa')} WhatsApp</a><a class="btn ghost" href="tel:${digits(c.phone)}">${ic('phone')} Ligar</a>` : ''}
       <button class="btn ghost" data-act="newOSFor" data-id="${c.id}">${ic('clip')} Nova OS</button>
       <button class="btn ghost" data-act="newQuoteFor" data-id="${c.id}">${ic('doc')} Novo orçamento</button>
       <button class="btn ghost" data-act="newEquipFor" data-id="${c.id}">${ic('shield')} Novo equipamento</button>

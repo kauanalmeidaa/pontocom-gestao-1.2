@@ -55,11 +55,12 @@ O celular precisa acessar o computador pela mesma rede Wi-Fi. Rode com `python -
 - Não tem emissão de nota fiscal nem cobrança por PIX/boleto automática.
 
 ## Para virar produto e revender
-Falta, nessa ordem: banco de dados online com login (um espaço isolado por empresa), cobrança de mensalidade, termos de uso e LGPD, e um período de teste com 3 a 5 empresas conhecidas. Toda a gravação de dados passa pelo arquivo `js/store.js`, então a troca para o banco online mexe principalmente nele.
+Falta, nessa ordem: banco de dados online com login (um espaço isolado por empresa), cobrança de mensalidade, termos de uso e LGPD, e um período de teste com 3 a 5 empresas conhecidas. Toda a gravação de dados passa pelo arquivo `js/store.js` (e `js/cloud.js` no modo online).
 
 ## Estrutura
     index.html            página única
     css/style.css         visual
+    assets/               logo e emblema da marca
     js/app.js             login, menu, rotas
     js/store.js           ÚNICO arquivo que grava dados
     js/domain.js          regras (baixa de estoque, garantias, lembretes, permissões)
@@ -67,3 +68,27 @@ Falta, nessa ordem: banco de dados online com login (um espaço isolado por empr
     js/util.js, items.js  utilidades
     js/views/*.js         uma tela por arquivo
     manifest.webmanifest, sw.js, icon-*.png   instalação no celular
+
+## Publicar no GitHub Pages (usar pelo celular)
+1. **O `index.html` precisa estar na raiz do repositório**, ou seja, aparecer logo na primeira tela do repositório no GitHub, junto com as pastas `css`, `js` e `assets`. Suba o **conteúdo** da pasta, não o arquivo `.zip` (o GitHub não abre zip) e, se possível, não a pasta `pontocom-gestao` por fora.
+2. No repositório: **Settings → Pages → Build and deployment → Source: Deploy from a branch → Branch: `main` e pasta `/ (root)` → Save**.
+3. Espere de 1 a 3 minutos. Na aba **Actions** deve aparecer "pages build and deployment" com ✓ verde.
+4. O endereço do site é `https://SEU-USUARIO.github.io/NOME-DO-REPOSITORIO/`. Não é o endereço do repositório (github.com/...). Maiúsculas e minúsculas contam.
+5. Se o repositório for **privado**, o Pages gratuito não publica. Deixe o repositório **público** (o que fica público é só o código; os dados da empresa ficam no seu aparelho).
+6. No iPhone: abra o endereço no **Safari → Compartilhar → Adicionar à Tela de Início**.
+
+**Importante:** os dados ficam separados em cada endereço e aparelho. O que você cadastrou no computador (localhost) não aparece no celular. Para levar os dados: em **Ajustes → Fazer backup** no computador, e **Restaurar backup** no celular.
+
+## Login e banco online (Firebase) — passo a passo
+1. Acesse console.firebase.google.com com sua conta Google → **Criar projeto** (nome: pontocom-gestao; pode desligar o Google Analytics).
+2. **Authentication → Vamos começar → Método de login → E-mail/senha → Ativar → Salvar.**
+3. **Firestore Database → Criar banco de dados → modo de produção → local: southamerica-east1 (São Paulo) → Ativar.**
+4. Ainda no Firestore, aba **Regras**: apague tudo, cole o conteúdo do arquivo `firestore.rules` e clique **Publicar**.
+5. **Engrenagem → Configurações do projeto → Seus apps → ícone `</>` (Web)** → dê um apelido → Registrar app. Copie `apiKey`, `authDomain`, `projectId` e `appId`.
+6. No GitHub, abra `js/config.js`, clique no lápis, cole os 4 valores entre as aspas e salve (Commit).
+7. **Authentication → Configurações → Domínios autorizados → Adicionar domínio:** `www.pontocomtech.com.br` (e `pontocomtech.com.br`).
+Com `js/config.js` vazio o sistema continua no modo local de teste (PIN).
+
+Como funciona: cada pessoa cria conta com e-mail e senha e cria a própria empresa (espaço totalmente em branco e separado) ou entra com um código de convite gerado em **Ajustes → Usuários e permissões → Novo usuário**. Para trazer os dados do modo local, faça backup lá e use **Restaurar backup** já logado na conta online.
+
+Limite do Firestore: cada registro (por exemplo uma OS com fotos) pode ter até ~1 MB. As fotos são reduzidas automaticamente; se a OS tiver fotos demais o sistema avisa para remover algumas.

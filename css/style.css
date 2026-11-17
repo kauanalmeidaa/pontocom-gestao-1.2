@@ -1,8 +1,8 @@
 /* PontoCom Gestão — visual de painel de controle: grafite, aço e luz de sinalização */
 :root{
-  --brand:#f5a300;--on-brand:#1a1200;
+  --brand:#053565;--on-brand:#ffffff;--accent:#06bf2f;--on-accent:#06182e;--doc:#053565;--on-doc:#ffffff;--doc-dark:#02172d;
   --bg:#edf0f3;--panel:#fff;--panel2:#f4f6f8;--ink:#0f1720;--mut:#5d6b78;--bd:#dce2e8;
-  --side:#0f1720;--side2:#1b2833;--side-tx:#b9c4ce;
+  --side:#031a32;--side2:#07284a;--side-tx:#b9c8d8;
   --ok:#16a34a;--warn:#d98200;--bad:#dc2626;--info:#2563eb;
   --r:12px;--sh:0 1px 2px rgba(15,23,32,.05),0 8px 24px rgba(15,23,32,.04);
   --font:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI Variable","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
@@ -33,9 +33,9 @@ body.noscroll{overflow:hidden}
 .nav a{position:relative;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:9px;color:var(--side-tx);font-weight:500}
 .nav a:hover{background:var(--side2);color:#fff}
 .nav a.on{background:var(--side2);color:#fff}
-.nav a.on::before{content:"";position:absolute;left:-12px;top:9px;bottom:9px;width:4px;border-radius:0 4px 4px 0;background:var(--brand)}
-.nav a.on .ic{color:var(--brand)}
-.nav .cnt{margin-left:auto;min-width:20px;padding:1px 7px;border-radius:99px;background:var(--brand);color:var(--on-brand);font-size:12px;font-weight:700;text-align:center}
+.nav a.on::before{content:"";position:absolute;left:-12px;top:9px;bottom:9px;width:4px;border-radius:0 4px 4px 0;background:var(--accent)}
+.nav a.on .ic{color:var(--accent)}
+.nav .cnt{margin-left:auto;min-width:20px;padding:1px 7px;border-radius:99px;background:var(--accent);color:var(--on-accent);font-size:12px;font-weight:700;text-align:center}
 .me{margin-top:auto;padding:12px 10px 2px;border-top:1px solid var(--side2);display:flex;flex-direction:column;gap:8px}
 .me b{color:#fff;display:block}.me small{color:var(--side-tx)}
 .me .row{display:flex;gap:8px}
@@ -48,7 +48,7 @@ body.noscroll{overflow:hidden}
 .page{padding:18px;max-width:1160px;margin:0 auto}
 .bnav{position:fixed;left:0;right:0;bottom:0;z-index:9;display:flex;background:var(--side);padding:6px 4px calc(6px + env(safe-area-inset-bottom))}
 .bnav a,.bnav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 0;border:0;background:none;color:var(--side-tx);font-size:11px}
-.bnav .on{color:#fff}.bnav .on .ic{color:var(--brand)}
+.bnav .on{color:#fff}.bnav .on .ic{color:var(--accent)}
 @media(min-width:900px){
   .side{display:flex}.main{margin-left:250px;padding-bottom:30px}.bnav{display:none}
   .top{padding:16px 32px}.page{padding:26px 32px}.top .mark{display:none}
@@ -228,17 +228,17 @@ table.t .r{text-align:right}
   #print .dx{font:12.5px/1.45 -apple-system,"Segoe UI Variable","Segoe UI",Roboto,Arial,sans-serif;color:#0f1720;font-variant-numeric:tabular-nums}
   #print .dx,#print .dx *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #print .dx h1,#print .dx h4,#print .dx p{margin:0}
-  #print .dx-h{position:relative;overflow:hidden;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:22px 26px;border-radius:14px;color:#fff;border-left:8px solid var(--brand);background:radial-gradient(rgba(255,255,255,.11) 1px,transparent 1.5px) 0 0/14px 14px,#0f1720}
-  #print .dx-sig{position:absolute;right:0;top:0;height:100%;width:60%;color:var(--brand);opacity:.5}
+  #print .dx-h{position:relative;overflow:hidden;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:22px 26px;border-radius:14px;color:#fff;border-left:8px solid var(--accent);background:radial-gradient(rgba(255,255,255,.11) 1px,transparent 1.5px) 0 0/14px 14px,var(--doc-dark)}
+  #print .dx-sig{position:absolute;right:0;top:0;height:100%;width:60%;color:var(--accent);opacity:.55}
   #print .dx-brand,#print .dx-title{position:relative;z-index:1}
   #print .dx-brand{display:flex;align-items:center;gap:14px}
-  #print .dx-brand img{height:52px;max-width:120px;object-fit:contain;background:#fff;padding:4px;border-radius:10px}
-  #print .dx-mono{width:52px;height:52px;border-radius:12px;background:var(--brand);color:var(--on-brand);display:grid;place-items:center;font-size:24px;font-weight:800}
+  #print .dx-brand img{height:62px;max-width:200px;object-fit:contain;background:#fff;padding:6px 10px;border-radius:12px}
+  #print .dx-mono{width:52px;height:52px;border-radius:12px;background:var(--accent);color:var(--on-accent);display:grid;place-items:center;font-size:24px;font-weight:800}
   #print .dx-brand b{display:block;font-size:17px}
-  #print .dx-brand span{display:block;font-size:11.5px;color:rgba(255,255,255,.72)}
+  #print .dx-brand span{display:block;font-size:12px;color:rgba(255,255,255,.82)}
   #print .dx-title{text-align:right}
   #print .dx-title h1{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
-  #print .dx-num{display:inline-block;margin-top:8px;padding:3px 14px;border-radius:99px;background:var(--brand);color:var(--on-brand);font-weight:700}
+  #print .dx-num{display:inline-block;margin-top:8px;padding:3px 14px;border-radius:99px;background:var(--accent);color:var(--on-accent);font-weight:700}
   #print .dx-strip{display:grid;grid-template-columns:repeat(4,1fr);margin-top:12px;border:1px solid #dfe5ec;border-radius:12px}
   #print .dx-strip>div{padding:10px 14px;border-left:1px solid #e6ebf0}
   #print .dx-strip>div:first-child{border-left:0}
@@ -249,8 +249,8 @@ table.t .r{text-align:right}
   #print .dx-card h4,#print .dx-amount h4{font-size:12px;font-weight:600;color:#5d6b78;margin-bottom:6px}
   #print .dx-card b{display:block;font-size:15px}
   #print .dx-card span{display:block;color:#3b4856}
-  #print .dx-card.dx-hi{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
-  #print .dx-card.dx-hi h4,#print .dx-card.dx-hi span{color:var(--on-brand);opacity:.8}
+  #print .dx-card.dx-hi{background:var(--doc);border-color:var(--doc);color:var(--on-doc)}
+  #print .dx-card.dx-hi h4,#print .dx-card.dx-hi span{color:var(--on-doc);opacity:.82}
   #print .dx-big{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.15}
   #print .dx-t{width:100%;border-collapse:separate;border-spacing:0;margin-top:14px}
   #print .dx-t thead{display:table-header-group}
@@ -262,10 +262,10 @@ table.t .r{text-align:right}
   #print .dx-t .r{text-align:right;white-space:nowrap}
   #print .dx-sum{width:54%;margin:10px 0 0 auto;break-inside:avoid}
   #print .dx-sum>div{display:flex;justify-content:space-between;padding:5px 12px;color:#3b4856}
-  #print .dx-sum .dx-tot{margin-top:6px;padding:12px 14px;border-radius:10px;background:#0f1720;color:#fff;align-items:baseline}
+  #print .dx-sum .dx-tot{margin-top:6px;padding:12px 14px;border-radius:10px;background:var(--doc-dark);color:#fff;align-items:baseline}
   #print .dx-tot b{font-size:20px;font-weight:800}
   #print .dx-tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px;break-inside:avoid}
-  #print .dx-tiles>div{border:1px solid #dfe5ec;border-top:3px solid var(--brand);border-radius:12px;padding:12px 14px}
+  #print .dx-tiles>div{border:1px solid #dfe5ec;border-top:3px solid var(--accent);border-radius:12px;padding:12px 14px}
   #print .dx-tiles b{display:block;font-size:19px;font-weight:800}
   #print .dx-tiles span{color:#5d6b78;font-size:11.5px}
   #print .dx-note{margin-top:12px;padding:10px 14px;border-radius:10px;background:#f4f6f8;color:#3b4856;font-size:11.5px;break-inside:avoid}
@@ -274,9 +274,9 @@ table.t .r{text-align:right}
   #print .dx-sign.one{grid-template-columns:1fr;width:46%;margin-left:auto}
   #print .dx-sign>div{border-top:1.5px solid #0f1720;padding-top:5px;text-align:center;font-size:12px;font-weight:600}
   #print .dx-sign small{display:block;font-weight:400;color:#5d6b78;font-size:11px}
-  #print .dx-f{display:flex;justify-content:space-between;gap:12px;margin-top:24px;padding-top:10px;border-top:2px solid var(--brand);color:#5d6b78;font-size:11px}
+  #print .dx-f{display:flex;justify-content:space-between;gap:12px;margin-top:24px;padding-top:10px;border-top:2px solid var(--accent);color:#5d6b78;font-size:11px}
   /* recibo */
-  #print .dx-amount{position:relative;display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:14px;padding:20px 24px;border:1px solid #dfe5ec;border-left:8px solid var(--brand);border-radius:12px}
+  #print .dx-amount{position:relative;display:flex;justify-content:space-between;align-items:center;gap:16px;margin-top:14px;padding:20px 24px;border:1px solid #dfe5ec;border-left:8px solid var(--accent);border-radius:12px}
   #print .dx-ext{margin-top:4px;font-style:italic;color:#3b4856;font-size:13px}
   #print .dx-stamp{transform:rotate(-9deg);border:3px solid #15803d;color:#15803d;border-radius:10px;padding:2px 20px;font-size:28px;font-weight:800;letter-spacing:.06em;opacity:.85}
   #print .dx-body{margin-top:16px;font-size:14px;line-height:1.7}
@@ -289,3 +289,27 @@ table.t .r{text-align:right}
   #print .dx p.dx-local{margin-top:24px}
   #print .dx .dx-amount h4{margin-bottom:6px}
 }
+
+/* ---------- identidade da logo ---------- */
+.mark img{padding:3px}
+.gate-logo{display:block;width:100%;max-width:250px;margin:0 auto 6px}
+.gate{background:linear-gradient(160deg,var(--side) 0%,var(--side2) 100%)}
+
+/* ícone do WhatsApp (preenchido, não em traço) */
+.ic.wa,.btn .ic.wa{fill:currentColor;stroke:none;width:20px;height:20px}
+.btn.ok .ic.wa{color:#fff}
+
+/* ===== responsivo: sem rolagem lateral em nenhum aparelho ===== */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;overflow-x:clip}
+body{overflow-x:clip;max-width:100%}
+img,svg,video,canvas{max-width:100%}
+/* iPhone dá zoom e "arrasta" a página para o lado quando o campo tem letra menor que 16px */
+input,select,textarea{font-size:16px;min-width:0;max-width:100%}
+input[type=date],input[type=time],input[type=month],input[type=datetime-local]{-webkit-appearance:none;appearance:none;min-height:42px;display:block}
+input[type=checkbox],input[type=radio]{min-width:0;max-width:none}
+.fg>*,.row>*,.btns>*,.li>*,.kpis>*{min-width:0}
+.li .lt{overflow-wrap:anywhere}
+.btns{flex-wrap:wrap}
+table{max-width:100%}
+.card{overflow-wrap:anywhere}
+@media(min-width:760px){.m-box.wide{width:820px;max-width:calc(100% - 40px)}}

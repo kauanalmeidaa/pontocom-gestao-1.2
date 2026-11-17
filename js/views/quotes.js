@@ -37,7 +37,7 @@ export function quoteForm(id, pre = {}) {
       ${F('status', 'Situação', x.status, { type: 'select', opts: Q_ST })}
       ${F('notes', 'Observações', x.notes, { type: 'textarea', full: true })}</div>
     <div class="btns"><button class="btn">Salvar orçamento</button></div>
-    ${id ? `<div class="btns"><button type="button" class="btn ghost" data-act="printQuote" data-id="${id}">${ic('print')} PDF / imprimir</button><button type="button" class="btn ok" data-act="waQuote" data-id="${id}">${ic('chat')} Enviar no WhatsApp</button>
+    ${id ? `<div class="btns"><button type="button" class="btn ghost" data-act="printQuote" data-id="${id}">${ic('print')} PDF / imprimir</button><button type="button" class="btn ok" data-act="waQuote" data-id="${id}">${ic('wa')} Enviar no WhatsApp</button>
       ${x.osId ? '' : `<button type="button" class="btn ghost" data-act="quoteToOS" data-id="${id}">${ic('clip')} Virar OS</button>`}<button type="button" class="btn danger" data-act="deleteQuote" data-id="${id}">${ic('trash')} Excluir</button></div>` : ''}
   </form>`, { wide: true });
   recalc($('#modal form'));

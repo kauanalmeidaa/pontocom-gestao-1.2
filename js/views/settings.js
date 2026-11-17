@@ -1,4 +1,5 @@
 import * as Store from '../store.js';
+import * as Cloud from '../cloud.js';
 import { DB, get, put, del, nextNum, settings, saveSettings, uid } from '../store.js';
 import { $, ACT, ic, esc, brl, fmtDate, today, addDays, addMonths, meta, badge, F, readForm, modal, closeModal, toast, saveFile, hashPin, me, app } from '../util.js';
 import { ROLES, types, afterSaveOS, MODULES, PRESETS, userPerms, isLimited } from '../domain.js';
@@ -13,14 +14,14 @@ export function render(root) {
       <div class="f"><label>Cor da marca</label><input type="color" name="color" value="${esc(s.color)}"></div>
       <div class="f"><label>Logo (PNG ou JPG)</label><label class="file" style="display:flex">${ic('plus')} Escolher imagem<input type="file" accept="image/*" data-change="setLogo"></label></div>
       ${F('warrantyEquip', 'Garantia dos equipamentos (meses)', s.warrantyEquip, { type: 'number', step: '1' })}${F('warrantyLabor', 'Garantia da mão de obra (meses)', s.warrantyLabor, { type: 'number', step: '1' })}
-      ${F('validity', 'Validade padrão do orçamento (dias)', s.validity, { type: 'number', step: '1' })}<div></div>
+      ${F('validity', 'Validade padrão do orçamento (dias)', s.validity, { type: 'number', step: '1' })}<div class="f"><label>Cor de destaque (verde da logo)</label><input type="color" name="accent" value="${esc(s.accent)}"></div>
       ${F('terms', 'Texto de garantia e condições (sai nos orçamentos e OS)', s.terms, { type: 'textarea', full: true })}</div>
-      <div class="btns"><button class="btn">Salvar</button>${s.logo ? `<button type="button" class="btn ghost" data-act="rmLogo">Remover logo</button>` : ''}</div></form></div>
+      <div class="btns"><button class="btn">Salvar</button>${s.logo ? `<button type="button" class="btn ghost" data-act="rmLogo">Remover logo</button>` : ''}<button type="button" class="btn ghost" data-act="resetBrand">${Store.cloud ? 'Restaurar cores padrão' : 'Restaurar logo e cores da PontoCom'}</button></div></form></div>
 
   <div class="card"><h3>Usuários e permissões</h3>
     ${DB.users.map(u => `<div class="li" data-act="editUser" data-id="${u.id}"><div class="av">${ic('users')}</div><div class="lt"><b>${esc(u.name)}</b>${meta(ROLES[u.role], u.role === 'dono' ? 'acesso total' : userPerms(u).length + ' módulo(s) liberado(s)', isLimited(u) ? 'acesso limitado' : '')}</div></div>`).join('')}
     <div class="btns"><button class="btn ghost" data-act="newUser">${ic('plus')} Novo usuário</button></div>
-    <p class="hint">Toque em um usuário para escolher quais módulos ele acessa. O dono sempre vê tudo. Nesta versão de teste o PIN protege só este aparelho. A segurança de verdade vem com o login online.</p></div>
+    <p class="hint">Toque em um usuário para escolher quais módulos ele acessa. O dono sempre vê tudo. ${Store.cloud ? 'Para adicionar alguém, toque em “Novo usuário”: o sistema gera um código de convite. A pessoa cria a conta (e-mail e senha) e informa o código.' : 'Nesta versão de teste o PIN protege só este aparelho. A segurança de verdade vem com o login online.'}</p></div>
 
   <div class="card"><h3>Etapas por tipo de serviço</h3>
     <form data-submit="saveChk"><div class="fg">${F('type', 'Tipo de serviço', tl[0], { type: 'select', opts: tl, attrs: 'data-change="chkType"' })}
@@ -50,11 +51,12 @@ ACT.setLogo = (d, el) => {
   im.onload = async () => {
     const k = Math.min(1, 360 / im.width), c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k);
     c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url);
-    await saveSettings({ ...settings(), logo: c.toDataURL('image/png') }); ACT.applyBrand(); app.refresh(); toast('Logo atualizada');
+    await saveSettings({ ...settings(), logo: c.toDataURL('image/png'), icon: '' }); ACT.applyBrand(); app.refresh(); toast('Logo atualizada');
   };
   im.src = url;
 };
-ACT.rmLogo = async () => { await saveSettings({ ...settings(), logo: '' }); app.refresh(); };
+ACT.rmLogo = async () => { await saveSettings({ ...settings(), logo: '', icon: '' }); app.refresh(); };
+ACT.resetBrand = async () => { const D = Store.DEFAULTS; await saveSettings({ ...settings(), color: D.color, accent: D.accent, logo: D.logo, icon: D.icon }); ACT.applyBrand(); app.refresh(); toast(Store.cloud ? 'Cores padrão restauradas' : 'Logo e cores da PontoCom restauradas'); };
 
 /* ---------- etapas ---------- */
 ACT.chkType = (d, el) => { $('[name=lines]', el.closest('form')).value = (settings().checklists[el.value] || []).join('\n'); };
@@ -92,12 +94,12 @@ function userForm(id) {
   const on = userPerms(u), dono = u.role === 'dono';
   modal(id ? 'Editar usuário' : 'Novo usuário', `<form data-submit="saveUser" data-id="${id || ''}"><div class="fg">
     ${F('name', 'Nome', u.name, { req: true })}${F('role', 'Função', u.role, { type: 'select', opts: Object.entries(ROLES), attrs: 'data-change="userRole"' })}
-    ${F('pin', id ? 'Novo PIN (deixe vazio para manter)' : 'PIN (4 a 8 números)', '', { type: 'password', req: !id, attrs: 'inputmode="numeric" autocomplete="new-password"', full: true })}</div>
+    ${Store.cloud ? '' : F('pin', id ? 'Novo PIN (deixe vazio para manter)' : 'PIN (4 a 8 números)', '', { type: 'password', req: !id, attrs: 'inputmode="numeric" autocomplete="new-password"', full: true })}</div>
     <div class="sub">O que este usuário pode acessar</div>
     <p class="hint" style="margin:0 0 6px">Marque os módulos liberados. Ao trocar a função, as opções se ajustam ao modelo dela e você pode mudar do jeito que quiser.</p>
     <div class="perms">${MODULES.map(([k, l]) => `<label class="chk"><input type="checkbox" name="perm_${k}" ${on.includes(k) ? 'checked' : ''} ${dono ? 'disabled' : ''}><span>${l}</span></label>`).join('')}</div>
     <label class="chk" style="margin-top:6px"><input type="checkbox" name="limited" ${isLimited(u) ? 'checked' : ''} ${dono ? 'disabled' : ''}><span><b>Acesso limitado</b><br><small class="hint">Vê só as OS em aberto dele e a agenda da semana atual. As OS aparecem para ele quando você escolhe o nome dele em “Técnico responsável”.</small></span></label>
-    <div class="btns"><button class="btn">Salvar usuário</button>${id && id !== me.user.id ? `<button type="button" class="btn danger" data-act="deleteUser" data-id="${id}">${ic('trash')} Excluir</button>` : ''}</div></form>`);
+    <div class="btns"><button class="btn">${Store.cloud && !id ? 'Gerar convite' : 'Salvar usuário'}</button>${id && id !== me.user.id ? `<button type="button" class="btn danger" data-act="deleteUser" data-id="${id}">${ic('trash')} Excluir</button>` : ''}</div></form>`);
 }
 ACT.newUser = () => userForm(''); ACT.editUser = d => userForm(d.id);
 ACT.userRole = (d, el) => {
@@ -107,9 +109,17 @@ ACT.userRole = (d, el) => {
 };
 ACT.saveUser = async (d, f) => {
   const v = readForm(f), old = get('users', d.id);
-  if (v.pin && !/^\d{4,8}$/.test(v.pin)) return toast('O PIN precisa ter de 4 a 8 números');
+  if (!Store.cloud && v.pin && !/^\d{4,8}$/.test(v.pin)) return toast('O PIN precisa ter de 4 a 8 números');
   const donos = DB.users.filter(u => u.role === 'dono' && u.id !== d.id).length;
   if (old && old.role === 'dono' && v.role !== 'dono' && !donos) return toast('Precisa existir pelo menos um dono');
+  if (Store.cloud && !d.id) {
+    const perms = v.role === 'dono' ? PRESETS.dono.perms : MODULES.map(m => m[0]).filter(k => v['perm_' + k]);
+    if (!perms.length) return toast('Marque pelo menos um módulo para este usuário');
+    const code = await Cloud.createInvite(v.name.trim(), v.role, perms, v.role === 'dono' ? false : !!v.limited);
+    const msg = `Olá, ${v.name.trim()}! Acesse ${location.origin}${location.pathname}, toque em “Criar conta” e depois use este código de convite: ${code}`;
+    modal('Convite gerado', `<p>Envie ao usuário. O código vale por 14 dias e só funciona uma vez.</p><div class="card" style="text-align:center;font-size:26px;letter-spacing:3px;font-weight:700">${code}</div><div class="btns"><a class="btn" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">Enviar pelo WhatsApp</a><button class="btn ghost" data-act="closeModal">Fechar</button></div>`);
+    return;
+  }
   const id = d.id || uid();
   const o = { ...(old || {}), id, name: v.name.trim(), role: v.role };
   if (v.role === 'dono') { o.perms = PRESETS.dono.perms; o.limited = false; }
@@ -117,7 +127,7 @@ ACT.saveUser = async (d, f) => {
     o.perms = MODULES.map(m => m[0]).filter(k => v['perm_' + k]); o.limited = !!v.limited;
     if (!o.perms.length) return toast('Marque pelo menos um módulo para este usuário');
   }
-  if (v.pin) o.pinHash = await hashPin(v.pin, id);
+  if (!Store.cloud && v.pin) o.pinHash = await hashPin(v.pin, id);
   await put('users', o); if (me.user.id === id) me.user = o;
   closeModal(); app.refresh(); toast('Usuário salvo');
 };

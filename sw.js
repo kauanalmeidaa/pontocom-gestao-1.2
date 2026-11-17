@@ -1,5 +1,5 @@
 // Rede primeiro (sempre pega a versão nova); sem internet, usa o que já foi aberto.
-const C = 'pontocom-gestao-v2';
+const C = 'pontocom-gestao-v4';
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== C).map(x => caches.delete(x)))).then(() => self.clients.claim()));

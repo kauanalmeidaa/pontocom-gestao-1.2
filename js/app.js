@@ -1,4 +1,5 @@
 import * as Store from './store.js';
+import * as Cloud from './cloud.js';
 import { uid } from './store.js';
 import { $, ACT, app, me, ic, esc, F, readForm, toast, closeModal, modal, hashPin, checkPin } from './util.js';
 import { ROLES, reminders, can } from './domain.js';
@@ -37,22 +38,32 @@ const allowed = () => NAV.filter(n => n[0] === 'settings' ? me.user.role === 'do
 
 /* ---------- tema e marca ---------- */
 function applyTheme() { document.documentElement.dataset.theme = localStorage.getItem('theme') || 'light'; }
-ACT.theme = () => { localStorage.setItem('theme', (localStorage.getItem('theme') || 'light') === 'light' ? 'dark' : 'light'); applyTheme(); shell(); };
+ACT.theme = () => { localStorage.setItem('theme', (localStorage.getItem('theme') || 'light') === 'light' ? 'dark' : 'light'); applyTheme(); applyBrand(); shell(); };
+const hexRGB = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const toHex = a => '#' + a.map(v => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0')).join('');
+const mix = (h, t, k) => { const a = hexRGB(h), b = hexRGB(t); return toHex(a.map((v, i) => v + (b[i] - v) * k)); };
+const lum = h => { const [r, g, b] = hexRGB(h); return (r * 299 + g * 587 + b * 114) / 1000; };
 export function applyBrand() {
-  const s = Store.settings(), c = /^#[0-9a-f]{6}$/i.test(s.color) ? s.color : '#f5a300';
-  const [r, g, b] = [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
-  document.documentElement.style.setProperty('--brand', c);
-  document.documentElement.style.setProperty('--on-brand', (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#1a1200' : '#ffffff');
-  document.title = s.company + ' – Gestão';
+  const s = Store.settings(), isHex = x => /^#[0-9a-f]{6}$/i.test(x);
+  const c = isHex(s.color) ? s.color : '#053565', a = isHex(s.accent) ? s.accent : '#06bf2f';
+  const dark = document.documentElement.dataset.theme === 'dark', R = document.documentElement.style;
+  const ui = dark ? mix(c, '#ffffff', .5) : c;            // no tema escuro o azul-marinho é clareado para ficar legível
+  R.setProperty('--brand', ui); R.setProperty('--on-brand', lum(ui) >= 150 ? '#06182e' : '#ffffff');
+  R.setProperty('--accent', a); R.setProperty('--on-accent', lum(a) > 110 ? '#06182e' : '#ffffff');
+  R.setProperty('--doc', c); R.setProperty('--on-doc', lum(c) >= 150 ? '#06182e' : '#ffffff'); R.setProperty('--doc-dark', mix(c, '#000000', .55));  // PDFs
+  R.setProperty('--side', mix(c, '#000000', dark ? .72 : .5)); R.setProperty('--side2', mix(c, '#000000', dark ? .55 : .32));       // menu lateral
+  document.querySelector('meta[name=theme-color]')?.setAttribute('content', mix(c, '#000000', dark ? .72 : .5));
+  document.title = (s.company || 'PontoCom') + ' – Gestão';
 }
 ACT.applyBrand = applyBrand;
-const markHTML = s => `<div class="mark">${s.logo ? `<img src="${s.logo}" alt="">` : esc((s.company || 'P').trim()[0].toUpperCase())}</div>`;
+const markHTML = s => { const src = s.icon || s.logo; return `<div class="mark">${src ? `<img src="${src}" alt="">` : esc((s.company || 'P').trim()[0].toUpperCase())}</div>`; };
+const gateLogo = (s, sub) => s.logo ? `<img class="gate-logo" src="${s.logo}" alt="${esc(s.company)}"><p class="hint" style="margin:0 0 16px;text-align:center">${sub}</p>` : '';
 
 /* ---------- entrada: configuração inicial e login ---------- */
 function gate(html) { $('#app').innerHTML = `<div class="gate"><div class="card">${html}</div></div>`; }
 function setupScreen() {
   const s = Store.settings();
-  gate(`<div class="logo">${markHTML(s)}<div><b>Bem-vindo</b><small>Vamos configurar o seu sistema</small></div></div>
+  gate(`${gateLogo(s, 'Vamos configurar o seu sistema') || `<div class="logo">${markHTML(s)}<div><b>Bem-vindo</b><small>Vamos configurar o seu sistema</small></div></div>`}
   <form data-submit="setup">
     ${F('company', 'Nome da empresa', s.company, { req: true })}
     ${F('name', 'Seu nome', '', { req: true })}
@@ -73,7 +84,7 @@ ACT.setup = async (d, f) => {
 };
 function loginScreen() {
   const s = Store.settings(), users = Store.DB.users;
-  gate(`<div class="logo">${markHTML(s)}<div><b>${esc(s.company)}</b><small>Entrar no sistema</small></div></div>
+  gate(`${gateLogo(s, 'Entrar no sistema') || `<div class="logo">${markHTML(s)}<div><b>${esc(s.company)}</b><small>Entrar no sistema</small></div></div>`}
   <form data-submit="login">
     <div class="f"><label>Usuário</label><select name="uid">${users.map(u => `<option value="${u.id}">${esc(u.name)} – ${ROLES[u.role]}</option>`).join('')}</select></div>
     ${F('pin', 'PIN', '', { req: true, type: 'password', attrs: 'inputmode="numeric" autocomplete="current-password"' })}
@@ -86,7 +97,76 @@ ACT.login = async (d, f) => {
   if (u && await checkPin(v.pin, u.id, u.pinHash)) startSession(u);
   else { $('#gerr').textContent = 'PIN incorreto. Tente de novo.'; f.pin.value = ''; f.pin.focus(); }
 };
-ACT.logout = () => { sessionStorage.removeItem('uid'); me.user = null; location.hash = ''; loginScreen(); };
+ACT.logout = async () => {
+  sessionStorage.removeItem('uid'); me.user = null; location.hash = '';
+  if (Store.cloud) { try { await Cloud.signOut(); } catch (e) {} Store.DB.users = []; return authScreen('in'); }
+  loginScreen();
+};
+
+/* ---------- login online (Supabase) ---------- */
+const pw = (name, label, extra = '') => F(name, label, '', { req: true, type: 'password', attrs: `minlength="8" autocomplete="${extra || 'current-password'}"` });
+function authScreen(mode = 'in', msg = '') {
+  const s = Store.settings();
+  const head = gateLogo({ logo: 'assets/logo.png', company: 'PontoCom Gestão' }, 'Gestão para empresas de segurança');
+  const note = msg ? `<p class="hint" id="gmsg" style="color:var(--ok,#0a7a2f);margin:0 0 10px">${esc(msg)}</p>` : '';
+  const tabs = mode === 'forgot' ? '' : `<div class="chips" style="margin-bottom:12px"><button type="button" class="chip ${mode === 'in' ? 'on' : ''}" data-act="authMode" data-m="in">Entrar</button><button type="button" class="chip ${mode === 'up' ? 'on' : ''}" data-act="authMode" data-m="up">Criar conta</button></div>`;
+  const body = mode === 'up' ? `<form data-submit="authUp">${F('email', 'E-mail', '', { req: true, type: 'email', attrs: 'autocomplete="email"' })}${pw('password', 'Crie uma senha (mínimo 8 caracteres)', 'new-password')}${pw('password2', 'Repita a senha', 'new-password')}<p class="err" id="gerr"></p><button class="btn block">Criar minha conta</button></form>
+      <p class="hint">Se você recebeu um código de convite da sua empresa, crie a conta aqui e use o código na próxima tela.</p>`
+    : mode === 'forgot' ? `<b>Recuperar senha</b><form data-submit="authForgot" style="margin-top:10px">${F('email', 'E-mail da conta', '', { req: true, type: 'email', attrs: 'autocomplete="email"' })}<p class="err" id="gerr"></p><button class="btn block">Enviar link para o e-mail</button></form><div class="btns"><button type="button" class="btn ghost" data-act="authMode" data-m="in">Voltar</button></div>`
+    : `<form data-submit="authIn">${F('email', 'E-mail', '', { req: true, type: 'email', attrs: 'autocomplete="email"' })}${pw('password', 'Senha')}<p class="err" id="gerr"></p><button class="btn block">Entrar</button></form><div class="btns"><button type="button" class="btn ghost" data-act="authMode" data-m="forgot">Esqueci minha senha</button></div>`;
+  gate(head + note + tabs + body);
+}
+ACT.authMode = d => authScreen(d.m);
+const busy = (f, on) => { const b = f.querySelector('button.btn'); if (b) b.disabled = on; };
+const gerr = m => { $('#gerr').textContent = m || ''; };
+ACT.authIn = async (d, f) => {
+  const v = readForm(f); gerr(); busy(f, true);
+  try { await Cloud.signIn(v.email.trim(), v.password); await afterAuth(); } catch (e) { gerr(e.message); busy(f, false); }
+};
+ACT.authUp = async (d, f) => {
+  const v = readForm(f); gerr();
+  if (v.password.length < 8) return gerr('A senha precisa ter pelo menos 8 caracteres.');
+  if (v.password !== v.password2) return gerr('As senhas não são iguais.');
+  busy(f, true);
+  try {
+    await Cloud.signUp(v.email.trim(), v.password); await afterAuth();
+  } catch (e) { gerr(e.message); busy(f, false); }
+};
+ACT.authForgot = async (d, f) => {
+  const v = readForm(f); gerr(); busy(f, true);
+  try { await Cloud.resetPassword(v.email.trim()); authScreen('in', 'Se o e-mail tiver cadastro, enviamos um link para criar uma nova senha.'); } catch (e) { gerr(e.message); busy(f, false); }
+};
+function onboardScreen() {
+  gate(`${gateLogo({ logo: 'assets/logo.png', company: 'PontoCom Gestão' }, 'Falta pouco para começar')}
+  <b>Criar minha empresa</b>
+  <form data-submit="createCo" style="margin:10px 0 18px">${F('company', 'Nome da empresa', '', { req: true })}${F('name', 'Seu nome', '', { req: true })}<p class="err" id="gerr"></p><button class="btn block">Criar empresa e entrar</button></form>
+  <b>Recebi um convite</b>
+  <form data-submit="joinCo" style="margin-top:10px">${F('code', 'Código do convite', '', { req: true, attrs: 'autocapitalize="characters" autocomplete="off"' })}${F('name', 'Seu nome', '', { req: true })}<p class="err" id="gerr2"></p><button class="btn block ghost">Entrar na empresa do convite</button></form>
+  <div class="btns"><button type="button" class="btn ghost" data-act="logout">Sair</button></div>`);
+}
+ACT.createCo = async (d, f) => {
+  const v = readForm(f); gerr(); busy(f, true);
+  try {
+    await Cloud.createCompany(v.company, v.name); await Cloud.loadMember(); await Store.loadAll();
+    await Store.saveSettings({ ...Store.settings(), company: v.company.trim() });
+    await afterAuth();
+  } catch (e) { gerr(e.message); busy(f, false); }
+};
+ACT.joinCo = async (d, f) => {
+  const v = readForm(f); $('#gerr2').textContent = ''; busy(f, true);
+  try { await Cloud.joinCompany(v.code, v.name); await afterAuth(); } catch (e) { $('#gerr2').textContent = e.message; busy(f, false); }
+};
+async function afterAuth() {
+  const m = await Cloud.loadMember();
+  if (!m) return onboardScreen();
+  await Store.loadAll(); applyBrand(); me.user = m; startSession(m);
+}
+async function bootCloud() {
+  let ses = null;
+  try { ses = await Cloud.getSession(); } catch (e) {}
+  if (!ses) return authScreen('in');
+  try { await afterAuth(); } catch (e) { console.error(e); authScreen('in', 'Entre novamente para continuar.'); }
+}
 function startSession(u) {
   sessionStorage.setItem('uid', u.id); me.user = u; applyBrand();
   if (!allowed().length) { gate(`<b>Seu usuário não tem acesso a nenhuma tela.</b><p class="hint">Peça ao administrador para liberar os módulos em Ajustes → Usuários.</p><div class="btns"><button class="btn ghost" data-act="logout">Sair</button></div>`); return; }
@@ -149,13 +229,14 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal()
 /* ---------- partida ---------- */
 (async function boot() {
   try {
-    await Store.open(); await Store.loadAll();
+    await Store.open(); if (!Store.cloud) await Store.loadAll();
   } catch (err) {
     $('#app').innerHTML = `<div class="gate"><div class="card"><b>Não foi possível abrir o banco de dados do navegador.</b><p class="hint">Saia do modo privado e abra o endereço http://localhost (não o arquivo direto).</p></div></div>`;
     return;
   }
   applyTheme(); applyBrand();
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
+  if (Store.cloud) return bootCloud();
   if (!Store.DB.users.length) return setupScreen();
   const u = Store.get('users', sessionStorage.getItem('uid'));
   if (u) { me.user = u; startSession(u); } else loginScreen();
