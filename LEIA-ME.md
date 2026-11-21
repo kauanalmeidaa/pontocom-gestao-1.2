@@ -25,6 +25,15 @@ No terminal do VS Code (Ctrl + `), dentro da pasta:
 - **Permissões por usuário:** em **Ajustes → Usuários e permissões**, ao criar ou editar um usuário você marca quais módulos ele acessa. Escolher a função preenche um modelo (que você pode alterar).
 - **Acesso limitado (técnico):** com essa opção marcada, o usuário vê só as OS **em aberto atribuídas a ele** e a **agenda da semana atual**, sem navegar para outras semanas, sem criar OS e sem ver financeiro. Para uma OS aparecer para ele, escolha o nome dele em "Técnico responsável" na OS. Quando ele conclui a OS, ela sai da lista dele.
 
+## Novidades (orçamento, OS e estoque)
+- **Orçamento e OS no mesmo layout (PDF):** cabeçalho com a logo, dados do cliente, itens, subtotal, desconto e total embaixo. Sem o quadrado azul de valor no topo.
+- **Foto do produto no orçamento:** em cada item, toque em "Foto do produto". A foto sai no PDF ao lado da descrição.
+- **Observações, Condições de garantia e Condições contratuais:** escreva os textos padrão em **Ajustes → Sua marca → Textos padrão dos documentos**. Todo orçamento e OS novo já vem preenchido, e você pode editar o texto só daquele documento.
+- **Material de consumo na OS:** abra a OS → aba **Material de consumo** → escolha o material e a quantidade → **Dar baixa no estoque**. A baixa fica na OS e no cliente. Dá para estornar.
+- **Formas de pagamento no orçamento:** ao criar o orçamento, marque as formas aceitas (PIX, dinheiro, cartão, boleto…) e escreva as condições. Em Ajustes você escolhe quais já vêm marcadas.
+- **PDF pelo Chrome sem cabeçalho e rodapé do navegador** (data, endereço do site). Se ainda aparecerem, na janela de impressão desmarque "Cabeçalhos e rodapés".
+- **Estoque → Consumo e compras:** mostra o uso de cada material nos últimos 30, 60 ou 90 dias, quantos dias o estoque dura e a sugestão de compra.
+
 ## Primeiros passos
 1. Na primeira vez, o sistema pede o nome da empresa, o seu nome e um **PIN** (4 a 8 números). Você vira o **dono**.
 2. Vá em **Ajustes → Testes → Carregar dados de exemplo** para ver todas as telas preenchidas. Para começar do zero depois, use **Apagar todos os dados**.
@@ -86,8 +95,9 @@ Falta, nessa ordem: banco de dados online com login (um espaço isolado por empr
 4. Ainda no Firestore, aba **Regras**: apague tudo, cole o conteúdo do arquivo `firestore.rules` e clique **Publicar**.
 5. **Engrenagem → Configurações do projeto → Seus apps → ícone `</>` (Web)** → dê um apelido → Registrar app. Copie `apiKey`, `authDomain`, `projectId` e `appId`.
 6. No GitHub, abra `js/config.js`, clique no lápis, cole os 4 valores entre as aspas e salve (Commit).
-7. **Authentication → Configurações → Domínios autorizados → Adicionar domínio:** `www.pontocomtech.com.br` (e `pontocomtech.com.br`).
-Com `js/config.js` vazio o sistema continua no modo local de teste (PIN).
+7. Para o botão **Continuar com Google**: **Authentication → Método de login → Google → Ativar →** escolha o e-mail de suporte do projeto → Salvar.
+8. **Authentication → Configurações → Domínios autorizados → Adicionar domínio:** `www.pontocomtech.com.br` (e `pontocomtech.com.br`).
+Com `js/config.js` vazio o site mostra o aviso "Login online ainda não configurado". O modo local antigo (PIN) só abre se você acrescentar `?local=1` ao endereço (útil para fazer backup dos dados antigos).
 
 Como funciona: cada pessoa cria conta com e-mail e senha e cria a própria empresa (espaço totalmente em branco e separado) ou entra com um código de convite gerado em **Ajustes → Usuários e permissões → Novo usuário**. Para trazer os dados do modo local, faça backup lá e use **Restaurar backup** já logado na conta online.
 

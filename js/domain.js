@@ -2,6 +2,7 @@
 import { DB, get, put, uid, nextNum, settings } from './store.js';
 import { ic, esc, brl, pad, fmtDate, today, addDays, addMonths, daysBetween, badge, meta, me } from './util.js';
 
+export const PAY_METHODS = ['PIX', 'Dinheiro', 'Cartão de crédito', 'Cartão de débito', 'Boleto', 'Transferência bancária'];
 export const ROLES = { dono: 'Dono / administrador', financeiro: 'Financeiro', tecnico: 'Técnico' };
 
 /* ---------- permissões por módulo ---------- */
@@ -49,7 +50,7 @@ export async function addMove(pid, type, qty, extra = {}) {
   const delta = type === 'saida' ? -Math.abs(qty) : qty;
   p.stock = (+p.stock || 0) + delta;
   await put('products', p);
-  await put('moves', { pid, type, qty: delta, date: today(), ...extra });
+  return put('moves', { pid, type, qty: delta, date: today(), ...extra });
 }
 
 /* ---------- o que acontece ao salvar uma OS ---------- */

@@ -23,6 +23,9 @@ const MSG = [
   [/email-already-in-use/i, 'Este e-mail já tem cadastro. Use "Entrar" ou "Esqueci minha senha".'],
   [/weak-password/i, 'Senha fraca. Use pelo menos 8 caracteres.'],
   [/too-many-requests/i, 'Muitas tentativas. Espere alguns minutos e tente de novo.'],
+  [/account-exists-with-different-credential/i, 'Este e-mail já tem cadastro com senha. Entre com e-mail e senha.'],
+  [/unauthorized-domain/i, 'Este endereço ainda não está autorizado no Firebase (Authentication → Configurações → Domínios autorizados).'],
+  [/operation-not-allowed/i, 'O login com Google ainda não foi ativado no Firebase.'],
   [/invalid-email/i, 'E-mail inválido.'],
   [/network-request-failed|unavailable/i, 'Sem conexão com a internet. Tente de novo.'],
   [/permission-denied|insufficient permissions/i, 'Sem permissão para esta ação. Se o problema continuar, peça ao administrador.'],
@@ -40,6 +43,18 @@ export const getSession = () => new Promise(res => { const un = F.au.onAuthState
 export const signUp = (email, password) => run(() => F.au.createUserWithEmailAndPassword(auth, email, password));
 export const signIn = (email, password) => run(() => F.au.signInWithEmailAndPassword(auth, email, password));
 export const signOut = async () => { member = null; await F.au.signOut(auth); };
+export async function signInGoogle() {
+  const prov = new F.au.GoogleAuthProvider();
+  prov.setCustomParameters({ prompt: 'select_account' });
+  try { await F.au.signInWithPopup(auth, prov); return true; }
+  catch (e) {
+    const c = String(e?.code);
+    if (/popup-closed-by-user|cancelled-popup-request/.test(c)) return false;
+    if (/popup-blocked|operation-not-supported|web-storage-unsupported/.test(c)) { await F.au.signInWithRedirect(auth, prov); return false; }  // volta para a página depois do login
+    fail(e);
+  }
+}
+export const redirectResult = async () => { try { return await F.au.getRedirectResult(auth); } catch (e) { fail(e); } };
 export const resetPassword = email => run(() => F.au.sendPasswordResetEmail(auth, email));
 export const currentMember = () => member;
 

@@ -1,8 +1,8 @@
 /* Documentos impressos (PDF): orçamento e recibo, com a mesma identidade visual.
    Também guarda as ações do recibo (gerar PDF, WhatsApp, aviso ao dar baixa). */
-import { get, put, nextNum, settings, DEFAULTS } from './store.js';
+import { get, put, nextNum, settings } from './store.js';
 import { ACT, ic, esc, brl, pad, fmtDate, addDays, parse, printHTML, waLink, modal, toast } from './util.js';
-import { total, itemsTotal, clientName } from './domain.js';
+import { total, itemsTotal, clientName, userName } from './domain.js';
 
 /* ---------- valor por extenso ---------- */
 const U = ['zero', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove', 'dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove'];
@@ -39,38 +39,62 @@ const longDate = d => parse(d).toLocaleDateString('pt-BR', { day: 'numeric', mon
 const head = (title, num, s) => `<header class="dx-h">
   <svg class="dx-sig" viewBox="0 0 200 200" preserveAspectRatio="xMaxYMin slice" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2"><circle cx="200" cy="0" r="42"/><circle cx="200" cy="0" r="84"/><circle cx="200" cy="0" r="126"/><circle cx="200" cy="0" r="168"/></g></svg>
   <div class="dx-brand">${s.logo ? `<img src="${s.logo}" alt="">` : `<div class="dx-mono">${esc((s.company || 'P').trim()[0].toUpperCase())}</div>`}
-    <div>${s.logo && !s.logo.startsWith('data:') ? '' : `<b>${esc(s.company)}</b>`}<span>${esc(s.whats)}</span><span>${esc(s.city)}${s.doc ? ' – ' + esc(s.doc) : ''}</span></div></div>
+    <div>${s.logo && !s.logo.startsWith('data:') ? '' : `<b>${esc(s.company)}</b>`}<span class="nw">${esc(s.whats)}</span>${s.city ? `<span class="nw">${esc(s.city)}</span>` : ''}${s.doc ? `<span class="nw">${esc(s.doc)}</span>` : ''}</div></div>
   <div class="dx-title"><h1>${title}</h1><div class="dx-num">${num}</div></div></header>`;
-const foot = s => `<footer class="dx-f"><span>${esc(s.company)}</span><span>${esc(s.whats)}</span><span>${esc(s.city)}</span></footer>`;
+const foot = s => `<footer class="dx-f"><span class="nw">${esc(s.company)}</span><span class="nw">${esc(s.whats)}</span><span class="nw">${esc(s.city)}</span></footer>`;
 const cell = (label, value) => `<div><small>${label}</small><b>${value}</b></div>`;
+
+/* ---------- textos do documento: observações, garantia, condições contratuais ---------- */
+/* Cada orçamento/OS guarda o seu texto. Documentos antigos (sem o campo) usam o texto padrão dos Ajustes. */
+export const docTexts = (x, s = settings()) => ({
+  notes: x.notes ?? s.defNotes ?? '',
+  warrantyText: x.warrantyText ?? s.terms ?? '',
+  contractText: x.contractText ?? s.contractTerms ?? ''
+});
+export const defaultTexts = (s = settings()) => ({ notes: s.defNotes || '', warrantyText: s.terms || '', contractText: s.contractTerms || '' });
+const nl = v => esc(v).replace(/\n/g, '<br>');
+const textBlocks = (x, s) => { const t = docTexts(x, s);
+  return [['Observações', t.notes], ['Condições de garantia', t.warrantyText], ['Condições contratuais', t.contractText]]
+    .filter(([, v]) => (v || '').trim()).map(([h, v]) => `<div class="dx-note"><b>${h}</b>${nl(v)}</div>`).join(''); };
+
+/* ---------- peças compartilhadas por orçamento e OS ---------- */
+const clientCard = c => `<div class="dx-card"><h4>Cliente</h4><b>${esc(c.name || '(sem cliente)')}</b>${c.phone ? `<span class="nw">${esc(c.phone)}</span>` : ''}${c.doc ? `<span class="nw">${esc(c.doc)}</span>` : ''}${c.address || c.city ? `<span>${esc([c.address, c.city].filter(Boolean).join(' – '))}</span>` : ''}</div>`;
+const itemsTable = items => `<table class="dx-t"><thead><tr><th class="n">#</th><th>Descrição</th><th class="r">Qtd</th><th class="r">Unitário</th><th class="r">Subtotal</th></tr></thead>
+  <tbody>${items.map((i, k) => `<tr><td class="n">${k + 1}</td><td>${i.photo ? `<img class="dx-img" src="${i.photo}" alt="">` : ''}<span class="dx-d">${esc(i.desc)}</span></td><td class="r">${i.qty}</td><td class="r">${brl(i.price)}</td><td class="r"><b>${brl(i.qty * i.price)}</b></td></tr>`).join('')}</tbody></table>`;
+const sumBlock = x => `<div class="dx-sum">
+  <div><span>Subtotal dos itens</span><span>${brl(itemsTotal(x.items))}</span></div>
+  ${x.discount ? `<div><span>Desconto</span><span>– ${brl(x.discount)}</span></div>` : ''}
+  <div class="dx-tot"><span>Total</span><b>${brl(total(x))}</b></div></div>`;
+const payBlock = x => ((x.payMethods || []).length || (x.payNote || '').trim()) ? `<div class="dx-note"><b>Formas de pagamento</b>${(x.payMethods || []).length ? `<div class="dx-pay">${x.payMethods.map(m => `<span>${esc(m)}</span>`).join('')}</div>` : ''}${(x.payNote || '').trim() ? nl(x.payNote) : ''}</div>` : '';
 
 /* ---------- orçamento ---------- */
 export function quoteDoc(x) {
-  const s = settings(), c = get('clients', x.clientId) || {}, t = total(x), sub = itemsTotal(x.items);
-  const until = addDays(x.date, +x.validity || 0);
-  const showTerms = s.terms && s.terms.trim() !== DEFAULTS.terms;
+  const s = settings(), c = get('clients', x.clientId) || {}, until = addDays(x.date, +x.validity || 0);
   return `<div class="dx">
   ${head('Orçamento', 'Nº ' + pad(x.num), s)}
   <div class="dx-strip">${cell('Emissão', fmtDate(x.date))}${cell('Válido até', fmtDate(until))}${cell('Situação', esc(x.status))}${cell('Itens', x.items.length)}</div>
-  <div class="dx-grid">
-    <div class="dx-card"><h4>Cliente</h4><b>${esc(c.name || '(sem cliente)')}</b>${c.phone ? `<span>${esc(c.phone)}</span>` : ''}${c.doc ? `<span>${esc(c.doc)}</span>` : ''}${c.address || c.city ? `<span>${esc([c.address, c.city].filter(Boolean).join(' – '))}</span>` : ''}</div>
-    <div class="dx-card dx-hi"><h4>Investimento total</h4><div class="dx-big">${brl(t)}</div><span>${x.discount ? 'já com desconto de ' + brl(x.discount) : 'valor final da proposta'}</span></div>
-  </div>
-  <table class="dx-t"><thead><tr><th class="n">#</th><th>Descrição</th><th class="r">Qtd</th><th class="r">Unitário</th><th class="r">Subtotal</th></tr></thead>
-    <tbody>${x.items.map((i, k) => `<tr><td class="n">${k + 1}</td><td>${esc(i.desc)}</td><td class="r">${i.qty}</td><td class="r">${brl(i.price)}</td><td class="r"><b>${brl(i.qty * i.price)}</b></td></tr>`).join('')}</tbody></table>
-  <div class="dx-sum">
-    <div><span>Subtotal</span><span>${brl(sub)}</span></div>
-    ${x.discount ? `<div><span>Desconto</span><span>– ${brl(x.discount)}</span></div>` : ''}
-    <div class="dx-tot"><span>Total</span><b>${brl(t)}</b></div>
-  </div>
-  <div class="dx-tiles">
-    <div><b>${+x.validity || 0} dias</b><span>de validade da proposta</span></div>
-    <div><b>${+s.warrantyEquip || 0} meses</b><span>de garantia nos equipamentos</span></div>
-    <div><b>${+s.warrantyLabor || 0} meses</b><span>de garantia na mão de obra</span></div>
-  </div>
-  ${showTerms ? `<div class="dx-note"><b>Condições</b>${esc(s.terms).replace(/\n/g, '<br>')}</div>` : ''}
-  ${x.notes ? `<div class="dx-note"><b>Observações</b>${esc(x.notes).replace(/\n/g, '<br>')}</div>` : ''}
+  <div class="dx-grid">${clientCard(c)}</div>
+  ${itemsTable(x.items)}
+  ${sumBlock(x)}
+  ${payBlock(x)}
+  ${textBlocks(x, s)}
   <div class="dx-sign"><div>${esc(s.company)}</div><div>${esc(c.name || 'Cliente')}<small>Aceito em ____/____/________</small></div></div>
+  ${foot(s)}</div>`;
+}
+
+/* ---------- ordem de serviço (mesmo layout do orçamento) ---------- */
+export function osDoc(o) {
+  const s = settings(), c = get('clients', o.clientId) || {}, items = o.items || [], ph = [...(o.before || []).map(x => [x, 'Antes']), ...(o.after || []).map(x => [x, 'Depois'])];
+  return `<div class="dx">
+  ${head('Ordem de serviço', 'Nº ' + pad(o.num), s)}
+  <div class="dx-strip">${cell('Data', fmtDate(o.date) + (o.time ? ' ' + esc(o.time) : ''))}${cell('Serviço', esc(o.type))}${cell('Situação', esc(o.status))}${cell('Técnico', esc(o.techId ? userName(o.techId) : '–'))}</div>
+  <div class="dx-grid">${clientCard(c)}</div>
+  ${o.desc ? `<div class="dx-note"><b>Descrição do serviço</b>${nl(o.desc)}</div>` : ''}
+  ${(o.checklist || []).length ? `<div class="dx-note dx-chk"><b>Etapas do serviço</b>${o.checklist.map(x => `<span>${x.done ? '☑' : '☐'} ${esc(x.t)}</span>`).join('')}</div>` : ''}
+  ${items.length ? itemsTable(items) + sumBlock({ items, discount: o.discount }) : ''}
+  ${ph.length ? `<div class="dx-note dx-ph-h"><b>Registro fotográfico</b></div><div class="dx-ph">${ph.map(([x, l]) => `<figure><img src="${x}" alt=""><figcaption>${l}</figcaption></figure>`).join('')}</div>` : ''}
+  ${textBlocks(o, s)}
+  <div class="dx-sign"><div>${esc(s.company)}</div><div>${o.signature ? `<img class="dx-sigimg" src="${o.signature}" alt="">` : ''}${esc(o.signedBy || c.name || 'Cliente')}<small>Assinatura do cliente</small></div></div>
   ${foot(s)}</div>`;
 }
 

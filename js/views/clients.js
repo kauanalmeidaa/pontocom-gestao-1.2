@@ -60,6 +60,10 @@ ACT.openClient = d => {
     ${pend.length ? `<div class="sub">A receber</div><p>${brl(sum(pend))} em ${pend.length} lançamento(s)</p>` : ''}
     <div class="sub">Equipamentos instalados (${eq.length})</div>
     ${eq.length ? eq.map(e => { const w = warrantyState(e); return `<div class="li" data-act="openEquip" data-id="${e.id}"><div class="av">${ic('shield')}</div><div class="lt"><b>${esc(e.type)} – ${esc(e.model)}</b>${meta(esc(e.location), 'garantia até ' + fmtDate(e.equipEnd))}</div><div class="rt">${badge(w.text, w.tone)}</div></div>`; }).join('') : '<p class="hint">Nenhum equipamento registrado.</p>'}
+    ${(() => { const cm = DB.moves.filter(m => m.consumo && m.clientId === c.id), by = {};
+      cm.forEach(m => { const p = get('products', m.pid); if (!p) return; (by[p.id] ||= { p, q: 0 }).q -= +m.qty || 0; });
+      const l = Object.values(by).filter(x => x.q > 0);
+      return l.length ? `<div class="sub">Material de consumo usado neste cliente</div>${l.map(x => `<div class="li"><div class="av">${ic('box')}</div><div class="lt"><b>${esc(x.p.name)}</b></div><div class="rt"><span class="v">${+x.q.toFixed(2)} ${esc(x.p.unit || 'un')}</span></div></div>`).join('')}` : ''; })()}
     <div class="sub">Ordens de serviço (${os.length})</div>
     ${os.length ? os.slice(0, 8).map(osRow).join('') : '<p class="hint">Nenhuma OS.</p>'}
     <div class="sub">Orçamentos (${qs.length})</div>

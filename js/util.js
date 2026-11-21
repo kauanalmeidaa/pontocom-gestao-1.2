@@ -159,7 +159,8 @@ export function compressImage(file, max = cloud ? 1024 : 1280, q = cloud ? 0.6 :
     im.onerror = err; im.src = url;
   });
 }
-export function printHTML(html) { $('#print').innerHTML = html; setTimeout(() => window.print(), 250); }
+/* A tabela com cabeçalho/rodapé vazios repete a margem em toda página; assim o @page pode ficar sem margem e o Chrome não imprime data, título e endereço do site. */
+export function printHTML(html) { $('#print').innerHTML = `<table class="pgwrap"><thead><tr><td><div class="pgsp"></div></td></tr></thead><tfoot><tr><td><div class="pgsp"></div></td></tr></tfoot><tbody><tr><td>${html}</td></tr></tbody></table>`; setTimeout(() => window.print(), 250); }
 export function printHeader(title, sub) {
   const s = settings();
   return `<div class="ph">${(s.icon || s.logo) ? `<img src="${s.icon || s.logo}" alt="">` : ''}<div><h2>${esc(s.company)}</h2><div>${esc(s.whats)} – ${esc(s.city)}${s.doc ? ' – ' + esc(s.doc) : ''}</div></div><div class="pr"><b>${esc(title)}</b><br>${esc(sub)}</div></div>`;

@@ -1,13 +1,45 @@
 import { DB, get, put, del } from '../store.js';
 import { $, ACT, ic, esc, brl, fmtDate, today, addDays, meta, badge, F, readForm, modal, closeModal, toast, app } from '../util.js';
+import { clientName } from '../domain.js';
 import { stockLow, addMove, osRow } from '../domain.js';
 
-let q = '', onlyLow = false;
+let q = '', onlyLow = false, tab = 'prod', days = 30;
+
+const tabs = () => `<div class="chips"><button class="chip ${tab === 'prod' ? 'on' : ''}" data-act="stockTab" data-v="prod">Produtos</button><button class="chip ${tab === 'cons' ? 'on' : ''}" data-act="stockTab" data-v="cons">Consumo e compras</button></div>`;
+ACT.stockTab = d => { tab = d.v; app.refresh(); };
+ACT.consDays = d => { days = +d.v; app.refresh(); };
+
+/* ---------- consumo e compras: para o setor de compras não deixar faltar material ---------- */
+function consumption() {
+  const from = addDays(today(), -days), rows = [];
+  for (const p of DB.products) {
+    const mv = DB.moves.filter(m => m.pid === p.id && m.date > from && (m.type === 'saida' || m.consumo));
+    const out = -mv.reduce((a, m) => a + (+m.qty || 0), 0), cons = -mv.filter(m => m.consumo).reduce((a, m) => a + (+m.qty || 0), 0);
+    const avg = out / days, st = +p.stock || 0, left = avg > 0 ? st / avg : Infinity, min = +p.min || 0;
+    if (out <= 0 && !(min > 0 && st <= min)) continue;
+    rows.push({ p, out, cons, avg, st, min, left, buy: Math.max(0, Math.ceil(avg * 30 + min - st)) });
+  }
+  return rows.sort((a, b) => a.left - b.left || a.p.name.localeCompare(b.p.name));
+}
+function renderCons(root) {
+  const rows = consumption(), urgent = rows.filter(r => r.left < 7 || (r.min > 0 && r.st <= r.min)).length;
+  const last = DB.moves.filter(m => m.consumo && m.qty < 0).sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 12);
+  root.innerHTML = `${tabs()}
+  <div class="card" style="margin-bottom:12px"><div class="chips" style="margin:0">${[30, 60, 90].map(n => `<button class="chip ${days === n ? 'on' : ''}" data-act="consDays" data-v="${n}">Últimos ${n} dias</button>`).join('')}</div>
+    <p class="hint" style="margin:8px 0 0">${urgent ? `<b>${urgent} material(is) pedem compra agora.</b> ` : ''}A sugestão de compra cobre os próximos 30 dias no ritmo de uso do período e ainda repõe o estoque mínimo.</p></div>
+  <div class="card">${rows.length ? `<table class="buy-t"><thead><tr><th>Material</th><th class="r">Em estoque</th><th class="r">Usado no período</th><th class="r">Média por dia</th><th class="r">Dura cerca de</th><th class="r">Sugestão de compra</th><th></th></tr></thead><tbody>${rows.map(r => {
+    const tone = (r.left < 7 || (r.min > 0 && r.st <= r.min)) ? 'bad' : r.left < 15 ? 'warn' : 'ok', u = esc(r.p.unit || 'un');
+    return `<tr><td>${esc(r.p.name)}</td><td class="r" data-l="Em estoque">${r.st} ${u}${r.min ? `<br><small class="hint">mínimo ${r.min}</small>` : ''}</td><td class="r" data-l="Usado">${+r.out.toFixed(2)} ${u}${r.cons ? `<br><small class="hint">${+r.cons.toFixed(2)} de consumo em OS</small>` : ''}</td><td class="r" data-l="Média/dia">${+r.avg.toFixed(2)} ${u}</td><td class="r" data-l="Dura">${r.left === Infinity ? '–' : badge(Math.floor(r.left) + ' dia(s)', tone)}</td><td class="r" data-l="Comprar"><b>${r.buy ? r.buy + ' ' + u : 'não precisa'}</b></td><td class="r"><button class="btn ghost sm" data-act="entry" data-id="${r.p.id}">Entrada</button></td></tr>`; }).join('')}</tbody></table>`
+    : `<div class="empty"><b>Ainda não há consumo registrado</b>Quando alguém der baixa de material na aba “Material de consumo” da OS, o uso aparece aqui, com a sugestão de compra.</div>`}</div>
+  <div class="card" style="margin-top:12px"><h3>Últimos consumos em OS</h3>${last.length ? last.map(m => { const p = get('products', m.pid), o = m.osId ? get('os', m.osId) : null;
+    return `<div class="li"><div class="av">${ic('box')}</div><div class="lt"><b>${esc(p ? p.name : 'Material')}</b>${meta(fmtDate(m.date), o ? 'OS ' + String(o.num).padStart(4, '0') : '', esc(m.clientId ? clientName(m.clientId) : ''))}</div><div class="rt"><span class="v">${-m.qty} ${esc(p?.unit || 'un')}</span></div></div>`; }).join('') : '<p class="hint">Nada registrado ainda.</p>'}</div>`;
+}
 
 export function render(root) {
+  if (tab === 'cons') return renderCons(root);
   const low = stockLow();
   const val = DB.products.reduce((a, p) => a + (p.stock || 0) * (p.cost || 0), 0);
-  root.innerHTML = `<div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+  root.innerHTML = `${tabs()}<div class="kpis" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
       <div class="kpi"><div class="k"><span class="led info"></span>Produtos</div><b>${DB.products.length}</b></div>
       <div class="kpi link" data-act="toggleLow"><div class="k"><span class="led ${low.length ? 'bad' : 'ok'}"></span>Estoque baixo</div><b>${low.length}</b><small>toque para filtrar</small></div>
       <div class="kpi"><div class="k"><span class="led ok"></span>Valor em estoque</div><b>${brl(val)}</b><small>a preço de custo</small></div></div>

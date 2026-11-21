@@ -114,8 +114,14 @@ function authScreen(mode = 'in', msg = '') {
       <p class="hint">Se você recebeu um código de convite da sua empresa, crie a conta aqui e use o código na próxima tela.</p>`
     : mode === 'forgot' ? `<b>Recuperar senha</b><form data-submit="authForgot" style="margin-top:10px">${F('email', 'E-mail da conta', '', { req: true, type: 'email', attrs: 'autocomplete="email"' })}<p class="err" id="gerr"></p><button class="btn block">Enviar link para o e-mail</button></form><div class="btns"><button type="button" class="btn ghost" data-act="authMode" data-m="in">Voltar</button></div>`
     : `<form data-submit="authIn">${F('email', 'E-mail', '', { req: true, type: 'email', attrs: 'autocomplete="email"' })}${pw('password', 'Senha')}<p class="err" id="gerr"></p><button class="btn block">Entrar</button></form><div class="btns"><button type="button" class="btn ghost" data-act="authMode" data-m="forgot">Esqueci minha senha</button></div>`;
-  gate(head + note + tabs + body);
+  const google = mode === 'forgot' ? '' : `<div class="btns" style="margin-top:14px"><button type="button" class="btn ghost block" data-act="authGoogle" style="justify-content:center;gap:10px"><svg viewBox="0 0 48 48" width="20" height="20" aria-hidden="true" style="flex:none"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continuar com Google</button></div>`;
+  gate(head + note + tabs + body + google);
 }
+ACT.authGoogle = async (d, b) => {
+  b.disabled = true;
+  try { if (await Cloud.signInGoogle()) await afterAuth(); else b.disabled = false; }
+  catch (e) { b.disabled = false; const g = $('#gerr'); if (g) g.textContent = e.message; else toast(e.message); }
+};
 ACT.authMode = d => authScreen(d.m);
 const busy = (f, on) => { const b = f.querySelector('button.btn'); if (b) b.disabled = on; };
 const gerr = m => { $('#gerr').textContent = m || ''; };
@@ -162,6 +168,7 @@ async function afterAuth() {
   await Store.loadAll(); applyBrand(); me.user = m; startSession(m);
 }
 async function bootCloud() {
+  try { await Cloud.redirectResult(); } catch (e) {}
   let ses = null;
   try { ses = await Cloud.getSession(); } catch (e) {}
   if (!ses) return authScreen('in');
@@ -237,6 +244,9 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal()
   applyTheme(); applyBrand();
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => {});
   if (Store.cloud) return bootCloud();
+  /* site publicado sem Firebase configurado: não mostra o modo local (PIN) para ninguém. Para abrir o modo local e fazer backup: acrescente ?local=1 ao endereço. */
+  if (/[?&]local=1/.test(location.search)) sessionStorage.setItem('local', '1');
+  if (sessionStorage.getItem('local') !== '1') return gate(`${gateLogo({ logo: 'assets/logo.png', company: 'PontoCom Gestão' }, 'Gestão para empresas de segurança')}<b>Login online ainda não configurado</b><p class="hint">O administrador precisa preencher o arquivo <code>js/config.js</code> com os dados do Firebase. Depois disso, esta tela passa a pedir e-mail e senha, o botão de entrar com Google e o cadastro de novas empresas.</p>`);
   if (!Store.DB.users.length) return setupScreen();
   const u = Store.get('users', sessionStorage.getItem('uid'));
   if (u) { me.user = u; startSession(u); } else loginScreen();

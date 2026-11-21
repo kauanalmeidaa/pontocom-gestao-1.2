@@ -23,7 +23,10 @@ export const DEFAULTS = {
   warrantyEquip: 12,
   warrantyLabor: 6,
   validity: 7,
-  terms: 'Garantia de 12 meses nos equipamentos e 6 meses na mão de obra.',
+  terms: 'Garantia de 12 meses nos equipamentos e 6 meses na mão de obra.',   // condições de garantia (texto padrão)
+  contractTerms: '',                         // condições contratuais (texto padrão)
+  defNotes: '',                              // observações (texto padrão)
+  defPay: [],                                // formas de pagamento já marcadas nos novos orçamentos
   checklists: {
     'Cerca elétrica': ['Instalar hastes e isoladores','Passar o fio e fechar os circuitos','Instalar e testar a central de choque','Instalar a sirene','Testar o aterramento','Instalar as placas de aviso','Testar o funcionamento e orientar o cliente'],
     'Cerca cortante': ['Fixar suportes e cabo de aço','Instalar a concertina','Conferir fixação e acabamento','Orientar o cliente'],
@@ -37,7 +40,7 @@ export const DEFAULTS = {
 };
 
 /* No modo online cada empresa começa totalmente em branco (nada da PontoCom vai para o cliente). */
-if (cloud) Object.assign(DEFAULTS, { company: '', whats: '', city: '', doc: '', logo: '', icon: '', warrantyEquip: 3, warrantyLabor: 3, terms: '' });
+if (cloud) Object.assign(DEFAULTS, { company: '', whats: '', city: '', doc: '', logo: '', icon: '', warrantyEquip: 3, warrantyLabor: 3, terms: '', contractTerms: '', defNotes: '' });
 
 export const DEFAULT_KITS = [
   { name: 'Kit 4 câmeras', items: [['4','Câmera bullet 2MP','0'],['1','DVR 4 canais','0'],['1','HD 1TB','0'],['1','Fonte 12V e conectores','0'],['1','Mão de obra de instalação','0']] },

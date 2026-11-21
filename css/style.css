@@ -214,7 +214,11 @@ table.t .r{text-align:right}
   #print .pg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
   #print .pg img{width:100%;height:120px;object-fit:cover}
   #print ul{margin:4px 0;padding-left:18px}
-  @page{margin:14mm}
+  @page{size:A4;margin:0}
+  #print{padding:0 12mm}
+  #print table.pgwrap{margin:0;width:100%}
+  #print table.pgwrap>thead>tr>td,#print table.pgwrap>tfoot>tr>td,#print table.pgwrap>tbody>tr>td{padding:0;border:0}
+  #print .pgsp{height:11mm}
 }
 
 /* ---------- permissões de usuário ---------- */
@@ -244,7 +248,7 @@ table.t .r{text-align:right}
   #print .dx-strip>div:first-child{border-left:0}
   #print .dx-strip small{display:block;font-size:11px;color:#5d6b78}
   #print .dx-strip b{font-size:13px}
-  #print .dx-grid{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;margin-top:12px}
+  #print .dx-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:12px}
   #print .dx-card{border:1px solid #dfe5ec;border-radius:12px;padding:14px 16px}
   #print .dx-card h4,#print .dx-amount h4{font-size:12px;font-weight:600;color:#5d6b78;margin-bottom:6px}
   #print .dx-card b{display:block;font-size:15px}
@@ -313,3 +317,38 @@ input[type=checkbox],input[type=radio]{min-width:0;max-width:none}
 table{max-width:100%}
 .card{overflow-wrap:anywhere}
 @media(min-width:760px){.m-box.wide{width:820px;max-width:calc(100% - 40px)}}
+
+/* foto do produto no item do orçamento */
+.it .iphw{grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.it .iphp{width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid var(--bd)}
+.it .iphp[hidden],.it .iphx[hidden]{display:none}
+.file.sm{padding:6px 10px;font-size:13px;display:inline-flex;gap:6px;align-items:center}
+
+/* documento: foto do item, etapas e registro fotográfico (orçamento e OS no mesmo layout) */
+  #print .dx-t td .dx-img{width:44px;height:44px;object-fit:cover;border-radius:6px;float:left;margin-right:10px;border:1px solid #dfe5ec}
+  #print .dx-t td .dx-d{display:block;overflow:hidden}
+  #print .dx-tiles{grid-template-columns:repeat(auto-fit,minmax(0,1fr))}
+  #print .dx-chk span{display:block;padding:1px 0}
+  #print .dx-ph{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
+  #print .dx-ph figure{margin:0;break-inside:avoid}
+  #print .dx-ph img{width:100%;height:130px;object-fit:cover;border-radius:8px;border:1px solid #dfe5ec}
+  #print .dx-ph figcaption{font-size:10.5px;color:#5d6b78;text-align:center}
+  #print .dx-sigimg{max-height:60px;display:block;margin:0 auto}
+
+/* abas dentro da janela da OS e linhas de consumo */
+.tabs{display:flex;gap:6px;margin:-4px 0 14px;border-bottom:1px solid var(--bd);overflow-x:auto;scrollbar-width:none}
+.tab{border:0;background:transparent;padding:10px 14px;font-weight:600;color:var(--mut);border-bottom:3px solid transparent;white-space:nowrap}
+.tab.on{color:var(--brand);border-bottom-color:var(--accent)}
+.cr{display:grid;grid-template-columns:1fr 90px 36px;gap:6px;margin-bottom:8px}
+.cr .rm{border:0;border-radius:8px;background:color-mix(in srgb,var(--bad) 12%,transparent);color:var(--bad);display:grid;place-items:center}
+.buy-t{width:100%;border-collapse:collapse;font-size:14px}
+.buy-t th{font-size:12px;color:var(--mut);text-align:left;padding:6px 8px;font-weight:600}
+.buy-t td{padding:9px 8px;border-top:1px solid var(--bd);vertical-align:middle}
+.buy-t .r{text-align:right;white-space:nowrap}
+@media(max-width:700px){.buy-t thead{display:none}.buy-t tr{display:grid;grid-template-columns:1fr 1fr;gap:2px 10px;padding:10px 0;border-top:1px solid var(--bd)}.buy-t td{border:0;padding:2px 0}.buy-t td:first-child{grid-column:1/-1;font-weight:700}.buy-t td[data-l]::before{content:attr(data-l)": ";color:var(--mut);font-size:12px}.buy-t .r{text-align:left}}
+  #print .dx-ph-h{break-after:avoid;margin-bottom:0}
+
+/* CNPJ, telefone e cidade nunca quebram linha; formas de pagamento no PDF */
+  #print .nw,.nw{white-space:nowrap}
+  #print .dx-pay{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 4px}
+  #print .dx-pay span{border:1px solid #c9d2db;border-radius:99px;padding:2px 10px;background:#fff;font-weight:600;color:#0f1720}

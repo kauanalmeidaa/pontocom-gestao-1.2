@@ -2,7 +2,7 @@ import * as Store from '../store.js';
 import * as Cloud from '../cloud.js';
 import { DB, get, put, del, nextNum, settings, saveSettings, uid } from '../store.js';
 import { $, ACT, ic, esc, brl, fmtDate, today, addDays, addMonths, meta, badge, F, readForm, modal, closeModal, toast, saveFile, hashPin, me, app } from '../util.js';
-import { ROLES, types, afterSaveOS, MODULES, PRESETS, userPerms, isLimited } from '../domain.js';
+import { ROLES, types, afterSaveOS, MODULES, PRESETS, userPerms, isLimited, PAY_METHODS } from '../domain.js';
 
 export function render(root) {
   const s = settings(), tl = types();
@@ -15,7 +15,12 @@ export function render(root) {
       <div class="f"><label>Logo (PNG ou JPG)</label><label class="file" style="display:flex">${ic('plus')} Escolher imagem<input type="file" accept="image/*" data-change="setLogo"></label></div>
       ${F('warrantyEquip', 'Garantia dos equipamentos (meses)', s.warrantyEquip, { type: 'number', step: '1' })}${F('warrantyLabor', 'Garantia da mão de obra (meses)', s.warrantyLabor, { type: 'number', step: '1' })}
       ${F('validity', 'Validade padrão do orçamento (dias)', s.validity, { type: 'number', step: '1' })}<div class="f"><label>Cor de destaque (verde da logo)</label><input type="color" name="accent" value="${esc(s.accent)}"></div>
-      ${F('terms', 'Texto de garantia e condições (sai nos orçamentos e OS)', s.terms, { type: 'textarea', full: true })}</div>
+      <div class="f full"><label>Formas de pagamento aceitas (já vêm marcadas nos novos orçamentos)</label><div class="perms">${PAY_METHODS.map((m, i) => `<label class="chk"><input type="checkbox" name="pm${i}" ${(s.defPay || []).includes(m) ? 'checked' : ''}><span>${esc(m)}</span></label>`).join('')}</div></div>
+      <div class="sub" style="grid-column:1/-1">Textos padrão dos documentos</div>
+      <p class="hint" style="grid-column:1/-1;margin:0">Todo orçamento e toda OS nova já vem com estes textos preenchidos. Em cada documento você ainda pode alterar o texto só daquela vez.</p>
+      ${F('defNotes', 'Observações (padrão)', s.defNotes || '', { type: 'textarea', rows: 3, full: true })}
+      ${F('terms', 'Condições de garantia (padrão)', s.terms, { type: 'textarea', rows: 4, full: true })}
+      ${F('contractTerms', 'Condições contratuais (padrão)', s.contractTerms || '', { type: 'textarea', rows: 5, full: true })}</div>
       <div class="btns"><button class="btn">Salvar</button>${s.logo ? `<button type="button" class="btn ghost" data-act="rmLogo">Remover logo</button>` : ''}<button type="button" class="btn ghost" data-act="resetBrand">${Store.cloud ? 'Restaurar cores padrão' : 'Restaurar logo e cores da PontoCom'}</button></div></form></div>
 
   <div class="card"><h3>Usuários e permissões</h3>
@@ -44,7 +49,7 @@ export function render(root) {
 }
 
 /* ---------- marca ---------- */
-ACT.saveBrand = async (d, f) => { const v = readForm(f); await saveSettings({ ...settings(), ...v }); ACT.applyBrand(); app.refresh(); toast('Ajustes salvos'); };
+ACT.saveBrand = async (d, f) => { const v = readForm(f); v.defPay = PAY_METHODS.filter((m, i) => v['pm' + i]); PAY_METHODS.forEach((m, i) => delete v['pm' + i]); await saveSettings({ ...settings(), ...v }); ACT.applyBrand(); app.refresh(); toast('Ajustes salvos'); };
 ACT.setLogo = (d, el) => {
   const file = el.files[0]; if (!file) return;
   const url = URL.createObjectURL(file), im = new Image();

@@ -1,8 +1,8 @@
 import { DB, get, put, del, nextNum, settings } from '../store.js';
 import { $, $$, ACT, ic, esc, brl, fmtDate, today, pad, F, readForm, modal, closeModal, toast, waLink, printHTML, printHeader, compressImage, me, app } from '../util.js';
-import { OS_ST, types, clientOpts, techOpts, clientName, userName, total, osRow, afterSaveOS, limited, can } from '../domain.js';
+import { OS_ST, types, clientOpts, techOpts, clientName, userName, total, osRow, afterSaveOS, limited, can, addMove } from '../domain.js';
 import { itemsEditor, readItems, recalc } from '../items.js';
-import { osPayButtons } from '../docs.js';
+import { osPayButtons, osDoc, docTexts, defaultTexts } from '../docs.js';
 
 let filter = 'Todas', q = '', ed = {};
 /* acesso limitado: só as OS dele que ainda estão em aberto */
@@ -34,10 +34,11 @@ const optHTML = (pairs, sel) => pairs.map(([v, l]) => `<option value="${esc(v)}"
 
 export function osForm(id, pre = {}) {
   const old = get('os', id);
-  const o = old || { status: 'Aberta', type: types()[0], date: today(), time: '', items: [], discount: 0, techId: limited() ? me.user.id : '', ...pre };
+  const o = old || { status: 'Aberta', type: types()[0], date: today(), time: '', items: [], discount: 0, techId: limited() ? me.user.id : '', ...defaultTexts(), ...pre }, tx = docTexts(o);
   ed = { before: [...(o.before || [])], after: [...(o.after || [])], sigDirty: false, cleared: false };
   const cl = o.checklist || checklistFor(o.type);
-  modal(id ? `OS ${pad(o.num)}` : 'Nova OS', `<form data-submit="saveOS" data-id="${id || ''}">
+  modal(id ? `OS ${pad(o.num)}` : 'Nova OS', `<div class="tabs" role="tablist"><button type="button" class="tab on" data-act="osTab" data-t="dados">Dados da OS</button><button type="button" class="tab" data-act="osTab" data-t="consumo">Material de consumo</button></div>
+  <div id="tabDados"><form data-submit="saveOS" data-id="${id || ''}">
     <input type="hidden" name="quoteId" value="${esc(o.quoteId || '')}">
     <div class="fg">
       ${F('clientId', 'Cliente', o.clientId, { type: 'select', opts: clientOpts(), req: true, attrs: 'data-change="osClient"' })}
@@ -47,6 +48,9 @@ export function osForm(id, pre = {}) {
       ${F('date', 'Data', o.date, { type: 'date' })}${F('time', 'Horário', o.time, { type: 'time' })}
       ${F('eqRef', 'Equipamento atendido (garantia / manutenção)', o.eqRef || '', { type: 'select', opts: eqPairs(o.clientId), full: true })}
       ${F('desc', 'Descrição do serviço', o.desc, { type: 'textarea', full: true })}
+      ${F('notes', 'Observações', o.notes ?? tx.notes, { type: 'textarea', rows: 3, full: true })}
+      ${F('warrantyText', 'Condições de garantia', tx.warrantyText, { type: 'textarea', rows: 4, full: true })}
+      ${F('contractText', 'Condições contratuais', tx.contractText, { type: 'textarea', rows: 5, full: true })}
     </div>
     <div class="sub">Etapas do serviço</div>
     <div id="chk">${chkHTML(cl)}</div>
@@ -64,8 +68,9 @@ export function osForm(id, pre = {}) {
     <div class="btns"><button class="btn">Salvar OS</button></div>
     ${id ? `<div class="btns"><button type="button" class="btn ghost" data-act="printOS" data-id="${id}">${ic('print')} PDF / imprimir</button><button type="button" class="btn ok" data-act="waOS" data-id="${id}">${ic('wa')} WhatsApp</button>${me.user.role === 'dono' ? `<button type="button" class="btn danger" data-act="deleteOS" data-id="${id}">${ic('trash')} Excluir</button>` : ''}</div>` : ''}
     ${id && o.finId && can('finance') ? osPayButtons(get('finance', o.finId)) : ''}
-  </form>`, { wide: true });
-  initSig(o.signature); thumbs(); recalc($('#modal form'));
+  </form></div>
+  <div id="tabConsumo" data-id="${id || ''}" hidden></div>`, { wide: true });
+  initSig(o.signature); thumbs(); recalc($('#modal form')); renderConsumo(id);
 }
 ACT.newOS = d => osForm('', { ...d });
 ACT.openOS = d => osForm(d.id);
@@ -114,7 +119,7 @@ ACT.clearSig = () => { ed.ctx.fillStyle = '#fff'; ed.ctx.fillRect(0, 0, ed.w, ed
 ACT.saveOS = async (d, f) => {
   const v = readForm(f), old = get('os', d.id) || {};
   const o = { ...old, clientId: v.clientId, type: v.type, status: v.status, techId: v.techId, date: v.date, time: v.time, desc: v.desc, eqRef: v.eqRef,
-    discount: v.discount, signedBy: v.signedBy, items: readItems(f), before: ed.before, after: ed.after,
+    discount: v.discount, signedBy: v.signedBy, notes: v.notes, warrantyText: v.warrantyText, contractText: v.contractText, items: readItems(f), before: ed.before, after: ed.after,
     checklist: $$('#chk label', f).map(l => ({ t: $('span', l).textContent, done: $('input', l).checked })) };
   if (v.quoteId) o.quoteId = v.quoteId;
   if (ed.sigDirty) o.signature = ed.canvas.toDataURL('image/png'); else if (ed.cleared) o.signature = '';
@@ -133,21 +138,56 @@ ACT.deleteOS = async d => {
 };
 
 /* ---------- impressão e WhatsApp ---------- */
-ACT.printOS = d => {
-  const o = get('os', d.id), c = get('clients', o.clientId) || {}, s = settings();
-  printHTML(`${printHeader('ORDEM DE SERVIÇO Nº ' + pad(o.num), fmtDate(o.date))}
-    <div class="box"><b>Cliente:</b> ${esc(c.name)}${c.phone ? ' – ' + esc(c.phone) : ''}${c.address ? '<br>' + esc(c.address) : ''}${c.city ? ' – ' + esc(c.city) : ''}</div>
-    <div class="box"><b>Serviço:</b> ${esc(o.type)} &nbsp; <b>Situação:</b> ${esc(o.status)}${o.techId ? ' &nbsp; <b>Técnico:</b> ' + esc(userName(o.techId)) : ''}${o.desc ? '<br>' + esc(o.desc).replace(/\n/g, '<br>') : ''}</div>
-    ${(o.checklist || []).length ? `<b>Etapas</b><ul>${o.checklist.map(x => `<li>${x.done ? '[x]' : '[ ]'} ${esc(x.t)}</li>`).join('')}</ul>` : ''}
-    ${(o.items || []).length ? `<table><thead><tr><th>Descrição</th><th class="r">Qtd</th><th class="r">Unitário</th><th class="r">Subtotal</th></tr></thead><tbody>${o.items.map(i => `<tr><td>${esc(i.desc)}</td><td class="r">${i.qty}</td><td class="r">${brl(i.price)}</td><td class="r">${brl(i.qty * i.price)}</td></tr>`).join('')}</tbody></table>${o.discount ? `<div class="r">Desconto: ${brl(o.discount)}</div>` : ''}<div class="tot">Total: ${brl(total(o))}</div>` : ''}
-    ${(o.before || []).length || (o.after || []).length ? `<p><b>Registro fotográfico</b></p><div class="pg">${[...(o.before || []), ...(o.after || [])].map(x => `<img src="${x}" alt="">`).join('')}</div>` : ''}
-    <div class="box">${esc(s.terms)}</div>
-    <div class="sign"><div>${esc(s.company)}</div><div>${o.signature ? `<img src="${o.signature}" alt="">` : ''}${esc(o.signedBy || c.name || 'Cliente')}</div></div>`);
-};
+ACT.printOS = d => printHTML(osDoc(get('os', d.id)));
 ACT.waOS = d => {
   const o = get('os', d.id), c = get('clients', o.clientId) || {}, s = settings();
   const msg = o.status === 'Concluída'
-    ? `Olá, ${c.name}! Seu serviço (${o.type}) foi concluído – OS ${pad(o.num)}. Total: ${brl(total(o))}. ${s.terms}\nObrigado pela confiança!\n\n${s.company} – ${s.whats}`
+    ? `Olá, ${c.name}! Seu serviço (${o.type}) foi concluído – OS ${pad(o.num)}. Total: ${brl(total(o))}. ${docTexts(o, s).warrantyText}\nObrigado pela confiança!\n\n${s.company} – ${s.whats}`
     : `Olá, ${c.name}! Sua OS ${pad(o.num)} (${o.type}) está ${o.status.toLowerCase()}${o.date ? ', com data prevista para ' + fmtDate(o.date) + (o.time ? ' às ' + o.time : '') : ''}.\n\n${s.company} – ${s.whats}`;
   window.open(waLink(c.phone, msg), '_blank');
+};
+
+/* ---------- aba "Material de consumo": baixa de estoque ligada à OS e ao cliente ---------- */
+const prodOpts = () => '<option value="">Escolha o material…</option>' + [...DB.products].sort((a, b) => a.name.localeCompare(b.name)).map(p => `<option value="${p.id}">${esc(p.name)} (em estoque: ${p.stock || 0} ${esc(p.unit || 'un')})</option>`).join('');
+const crow = () => `<div class="cr"><select class="cp" aria-label="Material">${prodOpts()}</select><input class="cq" type="number" step="any" min="0" inputmode="decimal" placeholder="Qtd" aria-label="Quantidade usada"><button type="button" class="rm" data-act="rmCons" aria-label="Remover linha">${ic('x')}</button></div>`;
+function renderConsumo(id) {
+  const box = $('#tabConsumo'); if (!box) return;
+  const o = get('os', id);
+  if (!o) { box.innerHTML = `<div class="empty"><b>Salve a OS primeiro</b>Depois de salvar, volte nesta aba para dar baixa no material de consumo usado no serviço.</div>`; return; }
+  const l = (o.consumo || []).slice().reverse();
+  box.innerHTML = `<p class="hint" style="margin-top:0">Registre aqui o que foi gasto no serviço (fio, abraçadeira, fita, conector…). A baixa sai do estoque na hora e fica registrada no cliente <b>${esc(clientName(o.clientId))}</b> e nesta OS.</p>
+  <form data-submit="saveConsumo" data-id="${o.id}"><div id="crows">${crow()}</div>
+    <div class="btns"><button type="button" class="btn ghost sm" data-act="addCons">${ic('plus')} Outro material</button></div>
+    <div class="btns"><button class="btn">${ic('check')} Dar baixa no estoque</button></div></form>
+  <div class="sub">Material já baixado nesta OS</div>
+  ${l.length ? l.map(c => `<div class="li"><div class="av">${ic('box')}</div><div class="lt"><b>${esc(c.name)}</b>${c.reverted ? `<span class="meta"><span>estornado</span></span>` : `<span class="meta"><span>${fmtDate(c.date)}</span><span>${esc(c.byName || '')}</span></span>`}</div><div class="rt"><span class="v" ${c.reverted ? 'style="text-decoration:line-through;opacity:.6"' : ''}>${c.qty} ${esc(c.unit || 'un')}</span>${c.reverted ? '' : `<button type="button" class="btn ghost sm" data-act="revertCons" data-id="${o.id}" data-cid="${c.id}">Estornar</button>`}</div></div>`).join('') : '<p class="hint">Nenhuma baixa registrada ainda.</p>'}`;
+}
+ACT.osTab = (d, el) => {
+  document.querySelectorAll('#modal .tab').forEach(b => b.classList.toggle('on', b === el));
+  $('#tabDados').hidden = d.t !== 'dados'; $('#tabConsumo').hidden = d.t !== 'consumo';
+  if (d.t === 'consumo') renderConsumo($('#tabConsumo').dataset.id);
+};
+ACT.addCons = () => $('#crows').insertAdjacentHTML('beforeend', crow());
+ACT.rmCons = (d, el) => { const rows = $('#crows'); if (rows.children.length > 1) el.closest('.cr').remove(); else { $('.cp', el.closest('.cr')).value = ''; $('.cq', el.closest('.cr')).value = ''; } };
+ACT.saveConsumo = async (d, f) => {
+  const o = get('os', d.id); if (!o) return;
+  const lines = $$('.cr', f).map(r => ({ pid: $('.cp', r).value, qty: +$('.cq', r).value || 0 })).filter(x => x.pid || x.qty);
+  if (!lines.length || lines.some(x => !x.pid || !(x.qty > 0))) return toast('Escolha o material e informe a quantidade em cada linha');
+  const short = lines.filter(x => (get('products', x.pid).stock || 0) < x.qty).map(x => get('products', x.pid).name);
+  if (short.length && !confirm(`Estoque insuficiente de: ${short.join(', ')}.\nDar baixa mesmo assim? O estoque ficará negativo.`)) return;
+  const cons = [...(o.consumo || [])];
+  for (const x of lines) {
+    const p = get('products', x.pid);
+    const mv = await addMove(p.id, 'saida', x.qty, { osId: o.id, clientId: o.clientId, consumo: true, by: me.user.id, note: `Consumo OS ${pad(o.num)}` });
+    cons.push({ id: mv.id, pid: p.id, name: p.name, unit: p.unit || 'un', qty: x.qty, date: today(), by: me.user.id, byName: me.user.name });
+  }
+  await put('os', { ...get('os', d.id), consumo: cons });
+  renderConsumo(d.id); toast('Baixa registrada no estoque');
+};
+ACT.revertCons = async d => {
+  const o = get('os', d.id), c = (o.consumo || []).find(x => x.id === d.cid); if (!c || c.reverted) return;
+  if (!confirm(`Estornar ${c.qty} ${c.unit} de ${c.name}? O material volta para o estoque.`)) return;
+  if (get('products', c.pid)) await addMove(c.pid, 'entrada', c.qty, { osId: o.id, clientId: o.clientId, consumo: true, by: me.user.id, note: `Estorno de consumo OS ${pad(o.num)}` });
+  await put('os', { ...o, consumo: o.consumo.map(x => x.id === d.cid ? { ...x, reverted: true } : x) });
+  renderConsumo(d.id); toast('Estorno feito');
 };
