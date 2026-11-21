@@ -128,7 +128,9 @@ ACT.saveOS = async (d, f) => {
   const had = !!old.finId;
   await afterSaveOS(o);
   if (o.quoteId && !old.quoteId) { const qt = get('quotes', o.quoteId); if (qt) { qt.status = 'Aprovado'; qt.osId = o.id; await put('quotes', qt); } }
-  closeModal(); app.refresh();
+  const y = $('#modal .m-b')?.scrollTop || 0;
+  app.refresh(); osForm(o.id);   // a janela continua aberta
+  const mb = $('#modal .m-b'); if (mb) mb.scrollTop = y;
   toast(!had && o.finId ? 'OS salva e cobrança lançada no financeiro' : 'OS salva');
 };
 ACT.deleteOS = async d => {

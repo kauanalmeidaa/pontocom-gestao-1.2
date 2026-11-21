@@ -53,7 +53,9 @@ ACT.saveQuote = async (d, f) => {
   if (!items.length) return toast('Adicione pelo menos um item');
   const o = { ...(get('quotes', d.id) || {}), clientId: v.clientId, date: v.date, validity: v.validity, discount: v.discount, status: v.status, notes: v.notes, warrantyText: v.warrantyText, contractText: v.contractText, payMethods: PAY_METHODS.filter((m, i) => v['pm' + i]), payNote: v.payNote, items };
   if (!d.id) o.num = await nextNum('quotes');
-  await put('quotes', o); closeModal(); app.refresh(); toast('Orçamento salvo');
+  const y = $('#modal .m-b')?.scrollTop || 0;
+  await put('quotes', o); app.refresh(); quoteForm(o.id); toast('Orçamento salvo');   // a janela continua aberta (já com os botões de PDF e WhatsApp)
+  const mb = $('#modal .m-b'); if (mb) mb.scrollTop = y;
 };
 ACT.deleteQuote = async d => { if (!confirm('Excluir este orçamento?')) return; await del('quotes', d.id); closeModal(); app.refresh(); toast('Orçamento excluído'); };
 ACT.quoteToOS = d => {

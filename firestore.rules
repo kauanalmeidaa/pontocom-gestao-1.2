@@ -44,7 +44,11 @@ service cloud.firestore {
       // clientes, OS, orçamentos, estoque, financeiro… (cada tipo é uma "gaveta")
       match /cols/{c}/items/{id} {
         allow read: if inCompany(cid) && canCol(c);
-        allow create, update, delete: if inCompany(cid) && canCol(c)
+        // quem fecha a OS (ex.: técnico) pode CRIAR a cobrança a receber, mas não lê nem altera o financeiro
+        allow create: if inCompany(cid)
+          && (canCol(c) || (c == 'finance' && request.resource.data.type == 'receber' && request.resource.data.paid == false))
+          && (c != 'meta' || id != 'settings' || me().role == 'dono');
+        allow update, delete: if inCompany(cid) && canCol(c)
           && (c != 'meta' || id != 'settings' || me().role == 'dono');
       }
     }
